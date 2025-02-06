@@ -1,0 +1,256 @@
+-- ginecooncologia Lider Javier
+use CentroContacto
+select 
+co.[N citacion],
+format(co.fecha, 'dd/MM/yyyy') as fecha,
+ca.[Código de Aseguradora Plan],
+co.Aseguradora,
+co.Un#org#tratamiento,
+co.[Nombre Completo],
+co.[Wrapup 2 (depurado)],
+co.[Clase Transp],
+co.Atendidas,
+co.Ubicado,
+co.Proceso,
+ou.Sede,
+co.[Medico de tratamiento (nombre)],
+ou.[Nombre Especialidad]
+from [Confirmacion_ene-ago_ivr_wp_tel] co
+left join [Unidades Organizativas] ou on co.Un#org#tratamiento = ou.[Unidad organizativa]
+left join [Códigos Aseguradoras] ca on co.Aseguradora = ca.Aseguradora
+where fecha between '2024-01-01' and '2024-12-31'
+and Un#org#tratamiento in ('TAGINONC','TCGINONC','TEGINONC','TELENONC','TLIMOGCO','TTELNONC','TTQCGINO')
+
+
+
+
+--Bibiana base odontopediatria, Reh oral y cirugia maxilofacial
+use CentroContacto
+select 
+co.[N citacion],
+format(co.fecha, 'dd/MM/yyyy') as fecha,
+ca.[Código de Aseguradora Plan],
+co.Aseguradora,
+co.Un#org#tratamiento,
+co.[Nombre Completo],
+co.[Wrapup 2 (depurado)],
+co.[Clase Transp],
+co.Atendidas,
+co.Ubicado,
+co.Proceso,
+ou.Sede,
+ou.[Nombre Especialidad]
+from [Confirmacion_ene-ago_ivr_wp_tel] co
+left join [Unidades Organizativas] ou on co.Un#org#tratamiento = ou.[Unidad organizativa]
+left join [Códigos Aseguradoras] ca on co.Aseguradora = ca.Aseguradora
+where fecha between '2024-01-01' and '2024-12-31'
+and Un#org#tratamiento in (
+'TAODOPED','TAQMAXIL','TAREHORA',
+'TCODOPED','TCQMAXIL','TCREHORA',
+'TELEAXIL','TELEHORA','TEODOPED',
+'TEQMAXIL','TEREHORA','TLIMOQMX',
+'TLIMOROR','TTELAXIL','TTQCODOP',
+'TTQCQMAX','TTQCREHO')
+
+
+
+--Pediatria
+use CentroContacto
+select 
+co.[N citacion],
+format(co.fecha, 'dd/MM/yyyy') as fecha,
+ca.[Código de Aseguradora Plan],
+co.Aseguradora,
+co.Un#org#tratamiento,
+co.[Nombre Completo],
+co.[Wrapup 2 (depurado)],
+co.[Clase Transp],
+co.Atendidas,
+co.Ubicado,
+co.Proceso,
+ou.Sede,
+ou.[Nombre Especialidad]
+from [Confirmacion_ene-ago_ivr_wp_tel] co
+left join [Unidades Organizativas] ou on co.Un#org#tratamiento = ou.[Unidad organizativa]
+left join [Códigos Aseguradoras] ca on co.Aseguradora = ca.Aseguradora
+where fecha between '2024-01-01' and '2024-12-31'
+and Un#org#tratamiento in ('TAPEDIAT','TCPEDIAT','TELEDIAT','TEPEDIAT','TLIMOPED','TTELDIAT','TTQCPEDI')
+
+-- Urologia
+use CentroContacto
+select 
+co.[N citacion],
+format(co.fecha, 'dd/MM/yyyy') as fecha,
+ca.[Código de Aseguradora Plan],
+co.Aseguradora,
+co.Un#org#tratamiento,
+co.[Nombre Completo],
+co.[Wrapup 2 (depurado)],
+co.[Clase Transp],
+co.Atendidas,
+co.Ubicado,
+co.Proceso,
+ou.Sede,
+ou.[Nombre Especialidad]
+from [Confirmacion_ene-ago_ivr_wp_tel] co
+left join [Unidades Organizativas] ou on co.Un#org#tratamiento = ou.[Unidad organizativa]
+left join [Códigos Aseguradoras] ca on co.Aseguradora = ca.Aseguradora
+where fecha between '2024-01-01' and '2024-12-31'
+and Un#org#tratamiento in ('TCUROLOG','TELEUROL','TEUROLOG','TTQCUROL','TAUROLOG')
+
+--Ginecologia
+use CentroContacto
+select 
+co.[N citacion],
+format(co.fecha, 'dd/MM/yyyy') as fecha,
+ca.[Código de Aseguradora Plan],
+co.Aseguradora,
+co.Un#org#tratamiento,
+co.[Nombre Completo],
+co.[Wrapup 2 (depurado)],
+co.[Clase Transp],
+co.Atendidas,
+co.Ubicado,
+co.Proceso,
+ou.Sede,
+ou.[Nombre Especialidad]
+from [Confirmacion_ene-ago_ivr_wp_tel] co
+left join [Unidades Organizativas] ou on co.Un#org#tratamiento = ou.[Unidad organizativa]
+left join [Códigos Aseguradoras] ca on co.Aseguradora = ca.Aseguradora
+where fecha between '2024-01-01' and '2024-12-31'
+and Un#org#tratamiento in ('TAGINEOB', 'TAGINONC', 'TCGINEOB', 'TCGINONC', 'TEENDOGI', 'TEGINEOB', 'TEGINONC', 'TELENONC', 'TELENEOB', 'TENDOGIN', 'TLIMOEGN', 'TLIMOGCO', 'TLIMOGOB', 'TTELGIOB', 'TTELNEOB', 'TTELNONC', 'TTEUGIOB', 'TTEUNONC', 'TTQCGINE', 'TTQCGINO')
+
+--BASES SANDRA
+-- TRASPLANTES
+SELECT 
+ag.[ID citación],
+FORMAT(ag.Fecha, 'dd/MM/yyyy') as Fecha,
+ag.Paciente,
+ag.[Num Dcto],
+ag.[Texto: causal modificación] as clase_transporte,
+ag.[Uo Plan],
+ag.Aseguradora,
+format(ag.[Fecha crea#],'dd/MM/yyyy') as fecha_creacion,
+CASE MONTH(ag.[Fecha crea#])
+    WHEN 1 THEN 'Enero'
+    WHEN 2 THEN 'Febrero'
+    WHEN 3 THEN 'Marzo'
+    WHEN 4 THEN 'Abril'
+    WHEN 5 THEN 'Mayo'
+    WHEN 6 THEN 'Junio'
+    WHEN 7 THEN 'Julio'
+    WHEN 8 THEN 'Agosto'
+    WHEN 9 THEN 'Septiembre'
+    WHEN 10 THEN 'Octubre'
+    WHEN 11 THEN 'Noviembre'
+    WHEN 12 THEN 'Diciembre'
+END as mes_creacion,
+ag.[Creado por],
+lo.[nombre completo] as agente,
+lo.departamento,
+CASE 
+    WHEN lo.departamento LIKE '%Agente%' THEN 'Centro de Contacto'
+    ELSE 'Secretarias'
+END as tipo_area
+FROM [Agendamiento FVL] ag 
+LEFT JOIN Loguin lo ON ag.[Creado por] = lo.[usuario]
+WHERE [Uo Plan] in ('TALFLINT','TATRASPL','TCTRASPL','TEINMTRA','TELEASPL','TETRASPL','TINMTRAS','TINTRCEN','TLIMOLIT','TLIMOTRA','TTELTXPL','TTEUTXPL','TTQCQHEP','TTQCTRAS','TTQINMTR')
+ORDER BY [Fecha]
+
+
+--BASES SANDRA
+-- OFTALMOLOGIA
+SELECT 
+ag.[ID citación],
+FORMAT(ag.Fecha, 'dd/MM/yyyy') as Fecha,
+ag.Paciente,
+ag.[Num Dcto],
+ag.[Texto: causal modificación] as clase_transporte,
+ag.[Uo Plan],
+ag.Aseguradora,
+format(ag.[Fecha crea#],'dd/MM/yyyy') as fecha_creacion,
+CASE MONTH(ag.[Fecha crea#])
+    WHEN 1 THEN 'Enero'
+    WHEN 2 THEN 'Febrero'
+    WHEN 3 THEN 'Marzo'
+    WHEN 4 THEN 'Abril'
+    WHEN 5 THEN 'Mayo'
+    WHEN 6 THEN 'Junio'
+    WHEN 7 THEN 'Julio'
+    WHEN 8 THEN 'Agosto'
+    WHEN 9 THEN 'Septiembre'
+    WHEN 10 THEN 'Octubre'
+    WHEN 11 THEN 'Noviembre'
+    WHEN 12 THEN 'Diciembre'
+END as mes_creacion,
+ag.[Creado por],
+lo.[nombre completo] as agente,
+lo.departamento,
+CASE 
+    WHEN lo.departamento LIKE '%Agente%' THEN 'Centro de Contacto'
+    ELSE 'Secretarias'
+END as tipo_area
+FROM [Agendamiento FVL] ag 
+LEFT JOIN Loguin lo ON ag.[Creado por] = lo.[usuario]
+WHERE [Uo Plan] in (
+'TAOFTALM','TAOFTPED','TCOFTALM',
+'TCOFTPED','TELETALM','TELETPED',
+'TEOFTALM','TEOFTPED','TLOFTALM',
+'TTELTALM','TTELTPED','TTEUTALM',
+'TTQCOFTA','TTQCOFTP','TAOPTOME',
+'TAORTOPT','TCOPTOME','TCORTOPT',
+'TELETOME','TELETOPT','TEOPTOME',
+'TEORTOPT','TTQCOPTO','TTQCOTOP')
+AND [Fecha crea#] BETWEEN '2024-01-01' AND '2024-12-31'
+ORDER BY [Fecha]
+
+
+-- Dayan Lizeth Aguirre Sanchez
+--'TAODOPED','TAQMAXIL','TAREHORA','TCODOPED','TCQMAXIL','TCREHORA','TELEAXIL','TELEHORA','TEODOPED','TEQMAXIL','TEREHORA','TLIMOQMX','TLIMOROR','TTELAXIL','TTQCODOP','TTQCQMAX','TTQCREHO'
+SELECT 
+format(bps.fecha,'dd/MM/yyyy') as fecha,
+format(bps.Hora,'HH:MM') as hora,
+bps.[ID citacion],
+bps.Paciente,
+bps.[Numero documento],
+bps.aseguradora,
+ca.Aseguradora,
+ca.[Tipo Aseguradora],
+uo.[Nombre Especialidad]
+from Base_Pura_Sap bps
+left join [Códigos Aseguradoras] ca on bps.Aseguradora = ca.[Código de Aseguradora Plan]
+left join [Unidades Organizativas] uo on bps.[Unidad organizativa] = uo.[Unidad organizativa]
+where bps.[Unidad organizativa] in (
+'TAODOPED','TAQMAXIL','TAREHORA',
+'TCODOPED','TCQMAXIL','TCREHORA',
+'TELEAXIL','TELEHORA','TEODOPED',
+'TEQMAXIL','TEREHORA','TLIMOQMX',
+'TLIMOROR','TTELAXIL','TTQCODOP',
+'TTQCQMAX','TTQCREHO')
+and Fecha between '2024-10-01' and '2025-01-31'
+order by Fecha
+
+
+-- CHRISTIAN -- FISIATRIA
+use CentroContacto
+select 
+co.[N citacion],
+format(co.fecha, 'dd/MM/yyyy') as fecha,
+ca.[Código de Aseguradora Plan],
+co.Aseguradora,
+co.Un#org#tratamiento,
+co.[Nombre Completo],
+co.[Wrapup 2 (depurado)],
+co.[Clase Transp],
+co.Atendidas,
+co.Ubicado,
+co.Proceso,
+ou.Sede,
+ou.[Nombre Especialidad]
+from [Confirmacion_ene-ago_ivr_wp_tel] co
+left join [Unidades Organizativas] ou on co.Un#org#tratamiento = ou.[Unidad organizativa]
+left join [Códigos Aseguradoras] ca on co.Aseguradora = ca.Aseguradora
+where fecha between '2024-01-01' and '2024-12-31'
+and Un#org#tratamiento in ('TAFISIAT','TCFISIAT','TEFISIAT','TELEIATR','TELESIAT','TFISIATR','TLIMOCFI','TLIMOFIS','TTQCFISI')
+
+
