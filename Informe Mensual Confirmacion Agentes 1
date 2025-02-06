@@ -1,0 +1,53 @@
+WITH Citaciones AS (
+    SELECT DISTINCT conversationid,
+        TO_CHAR(participantstarttime, 'DD/MM/YYYY') AS fecha,
+        TO_CHAR(participantstarttime, 'HH24:MI:SS') AS hora,
+        value AS N_Citacion,
+        key
+    FROM gns_purecloud.conversation_attributes
+    WHERE purpose = 'agent'
+        AND key = 'dialerContactId'
+        AND TO_DATE(TO_CHAR(participantstarttime, 'YYYY-MM-DD'), 'YYYY-MM-DD') BETWEEN '2025-01-01' AND '2025-01-31'
+
+),
+DetallesConversaciones AS (
+    SELECT conversationid,
+        TO_CHAR(conversationstart, 'DD/MM/YYYY') AS fecha,
+        wrapupcodename AS tipificacion,
+        username AS agente,
+        dnis AS telefono,
+        queuename
+    FROM gns_purecloud.conversations_details
+    WHERE segmenttype = 'wrapup'
+        AND username NOT IN ('Jhon Esneider Jimenez Obando', 'Support GNS - 1', 'Andrés Felipe Díaz Guzmán')
+        AND queuename LIKE 'Outbound%'
+        AND wrapupcodename LIKE 'Out%'
+),
+UltimaLlamadaPorTelefono AS (
+    SELECT
+        cd.fecha,
+        cd.conversationid,
+        ca.hora,
+        ca.N_Citacion,
+        cd.tipificacion,
+        cd.agente,
+        SUBSTRING(cd.telefono, 6) AS telefono,
+        cd.queuename,
+        ROW_NUMBER() OVER (PARTITION BY cd.fecha, SUBSTRING(cd.telefono, 6) ORDER BY ca.hora DESC) AS fila_num
+    FROM Citaciones AS ca
+    LEFT JOIN DetallesConversaciones AS cd
+    ON ca.conversationid = cd.conversationid
+    WHERE cd.queuename != 'Gestion Inasistencia V 2.0'
+)
+SELECT
+    fecha,
+    conversationid,
+    hora,
+    N_Citacion,
+    tipificacion,
+    agente,
+    telefono,
+    queuename
+FROM UltimaLlamadaPorTelefono
+WHERE fila_num = 1
+
