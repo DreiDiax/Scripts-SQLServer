@@ -1,0 +1,68 @@
+WITH bp AS (
+	SELECT
+	    format(Fecha,'dd/MM/yyyy') as Fecha,
+		[Unidad organizativa],
+		FORMAT(Aseguradora, '0') AS Aseguradora,
+		COUNT([ID citacion]) AS Citas,
+		[Creado por],
+		[Fecha creacion],
+		[Tipo de cita],
+		[Texto causal modificacion],
+	    [ID citacion]
+	FROM [dbo].[Base_Pura_Sap]
+	GROUP BY
+		Fecha,
+		[Unidad organizativa],
+		Aseguradora,
+		[Creado por],
+		[Tipo de cita],
+		[Texto causal modificacion],
+	    [ID citacion]
+),
+uo AS(
+	SELECT
+		[Unidad organizativa],
+		[Grupo],
+		[Nombre Especialidad],
+		[Sede]
+	FROM [dbo].[Unidades Organizativas]
+	WHERE Grupo in ('Consulta Externa','Gestión Humana','Ambulatorios')
+),
+a AS (
+	SELECT
+		[Código de Aseguradora Plan],
+		[Nombre / R#Social_(Reporte MCSI)],
+		[Tipo Aseguradora]
+	FROM
+		CentroContacto.dbo.[Códigos Aseguradoras]
+),
+hc AS(
+	SELECT
+		Nombre,
+		[Líder Asignado],
+		[Usuario de Windows/Sap],
+		[Fecha de Egreso],
+		[ID (Genesys)],
+		Segmento,
+		Meta
+	FROM
+		CentroContacto.dbo.Headcount
+)
+SELECT
+	bp.Fecha,
+	bp.[Unidad organizativa],
+	bp.Citas,
+	bp.[Creado por],
+	hc.Nombre,
+	bp.[Tipo de cita],
+	bp.[Texto causal modificacion],
+	bp.[ID citacion],
+	uo.grupo,
+	uo.[Nombre Especialidad],
+	uo.[Sede],
+	a.[Nombre / R#Social_(Reporte MCSI)],
+	a.[Tipo Aseguradora]
+FROM bp
+LEFT JOIN uo ON bp.[Unidad organizativa] = uo.[Unidad organizativa]
+LEFT JOIN a ON bp.Aseguradora = a.[Código de Aseguradora Plan]
+WHERE uo.grupo is not null
