@@ -1,0 +1,22 @@
+-- Base 
+SELECT DISTINCT 
+format(bp.[Fecha creacion],'dd/MM/yyyy') as [Fecha Creacion],
+FORMAT(bp.Fecha, 'dd/MM/yyyy') AS [Fecha Atencion],
+bp.[Creado por],
+bp.[ID citacion],
+bp.[Numero documento],
+bp.Aseguradora,
+bp.[Nombre aseguradora],
+bp.[Nombre medico] + ' ' + [Apellido medico] as [Nombre Medico],
+bp.[Tipo de cita],
+bp.[Texto causal modificacion] as [Clase de Transporte],
+bp.[Unidad organizativa],
+uo.Sede,
+c.Proceso as [Canal de Confirmacion],
+c.[Wrapup 2 (depurado)] as Tipificacion
+FROM Base_Pura_Sap bp
+left join [Unidades Organizativas] uo on bp.[Unidad organizativa] = uo.[Unidad organizativa]
+left join [Confirmacion_ene-ago_ivr_wp_tel] c on bp.[ID citacion] = c.[N citacion] 
+where bp.Fecha between '2024-01-01' and '2025-02-28'
+and uo.[Nombre Especialidad] = 'Ortopedia'
+and uo.Sede = 'Tequendama'
