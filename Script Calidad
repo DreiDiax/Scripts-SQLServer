@@ -1,0 +1,177 @@
+WITH
+special_ids AS (
+    SELECT UNNEST(ARRAY[
+		'd55fccbf-c632-43e5-9afd-628a8246d31f',
+		'56202ec6-ccb5-4cdd-8322-3a539071eb4b',
+		'84eb8ad6-9cff-40ac-b393-452f0ac97e42',
+		'af1f8992-1081-4969-87ad-e3c52b04010c',
+		'd8107c3c-03db-4dfa-a164-2374cab82326',
+		'c86feade-9348-4341-b3fb-af2ee1b22de2',
+		'eb4ae416-52bb-4cd8-982f-001e8b131776',
+		'c49edfbe-40a5-4f3e-b6f3-c8c656416aa7',
+		'98d5cdf8-250b-4a71-8614-005ea33cde9a',
+		'130c4d6d-e99b-420d-a743-49fb6f4596e3',
+		'6c2d52cf-a019-4c31-a18d-912ea4b8aa06',
+		'f0b8c267-a488-4c88-bab9-547439b56e5c',
+		'e44ad53e-3528-47da-aea5-89d14c45b6b4',
+		'f794dfaf-20d0-4fd2-b823-f11a01e948fd',
+		'613ff6fa-fcde-4b3b-b799-57fb1076a2cb',
+		'3c7ad531-be72-4a33-bdbf-af05bd0aef5a',
+		'924766a3-fd3e-4efb-b06e-f67564292802',
+		'30aa8098-0079-4edf-8e8e-3b0fcc0b3e9f',
+		'247bcf80-9a0f-4553-bad4-b49f54e01be6',
+		'8fcd2675-02fd-49fb-9c6b-ad56ffbc8030',
+		'600aa2be-186c-43ad-a1e9-894d0438b614',
+		'66bca33d-cd0c-470b-ac20-4f4f6725bcf0',
+		'e6e06651-5ab1-4249-90cb-e16235a77783',
+		'e4428fe1-3e5c-45f3-bac2-9b9e367e1cc0',
+		'863dd8e8-6cae-4413-90d4-5bb7b7df7a18',
+		'dfa5a97a-c188-4eab-9455-8e4be56874fe',
+		'7d1f6be2-39ba-462d-9dca-88e5b613667c',
+		'bd59da44-4be7-4869-98f9-a099b867b09b',
+		'e938fe4e-bdb9-41a6-8491-c43820a2bf46',
+		'ec094122-bb51-4677-8d2f-0ab2dd752986',
+		'a0e27f38-2280-4c20-8aae-4bb304dd32b2',
+		'dfaf3ffe-a6f3-4ded-83b6-9224aae32982',
+		'a86f29a1-c5fa-47f6-bc75-4baa15159109',
+		'3daf9ab8-5758-4053-ba40-b4b23bdbbaab',
+		'b0c7f3c2-d4f5-4c82-a89c-566eb0162db2',
+		'913e1ab9-5b3f-47d8-aaf2-a41a2b07b5ef',
+		'78a7c07f-2b89-478b-a0eb-3929bdcdd814',
+		'b024caff-3944-4b72-8577-63c681d03bba',
+		'b45e3951-8c14-4a7d-8a93-f681b3019d94',
+		'd73fdcfc-3479-49b5-9257-d84c909d51a4',
+		'afafcd22-3328-4dd5-9959-0326fafa811f',
+		'0cc5a71a-b63a-4af7-906c-ae58be49476f',
+		'2c97a482-c14d-4b04-b325-8e257321d961',
+		'73325b60-0088-429c-ba68-c14057c212cf',
+		'c3baa4f5-5cc0-451a-8c1f-495a90be1224'
+    ]) AS conversationid
+),
+es AS (
+    SELECT
+        DISTINCT(evaluationid),
+        conversationid,
+        CASE 
+            WHEN conversationid IN (SELECT conversationid FROM special_ids) 
+            THEN to_char(conversationstart, 'DD/MM/YYYY')
+            ELSE to_char(releasedate, 'DD/MM/YYYY')
+        END AS fecha,
+        CASE 
+            WHEN conversationid IN (SELECT conversationid FROM special_ids) 
+            THEN to_char(conversationstart, 'MM/YYYY')
+            ELSE to_char(releasedate, 'MM/YYYY')
+        END AS mes,
+        agentname AS username,
+        agentid AS userid,
+        questionscore,
+        evaluatorname,
+        questiongroupname,
+        questiontext,
+        queuename,
+        totalevaluationscore
+    FROM
+        gns_2024.evaluations
+    WHERE releasedate >= '2024-01-01'
+    AND questionscore IS NOT NULL
+    AND questiongroupname NOT IN ('Selecciona el tipo de matriz', 'Tipo de plantilla', 'Recomendaciones')
+    AND status = 'FINISHED'
+    AND agentid <> 'f712d57e-8825-4518-aae0-2d40e9f7c1f5'
+    AND evaluatorname <> 'Andrés Felipe Díaz Guzmán'
+    AND evaluationformname <> 'Depreciado - Plantilla Matriz de Demanda'
+UNION
+    SELECT
+        DISTINCT(evaluationid),
+        conversationid,
+        CASE 
+            WHEN conversationid IN (SELECT conversationid FROM special_ids) 
+            THEN to_char(conversationstart, 'DD/MM/YYYY')
+            ELSE to_char(releasedate, 'DD/MM/YYYY')
+        END AS fecha,
+        CASE 
+            WHEN conversationid IN (SELECT conversationid FROM special_ids) 
+            THEN to_char(conversationstart, 'MM/YYYY')
+            ELSE to_char(releasedate, 'MM/YYYY')
+        END AS mes,
+        agentname,
+        agentid,
+        questionscore,
+        evaluatorname,
+        questiongroupname,
+        questiontext,
+        queuename,
+        totalevaluationscore
+    FROM
+        gns_purecloud.evaluations
+    WHERE releasedate >= '2025-01-01'
+    AND questionscore IS NOT NULL
+    AND questiongroupname NOT IN ('Selecciona el tipo de matriz', 'Tipo de plantilla', 'Recomendaciones')
+    AND status = 'FINISHED'
+    AND agentid <> 'f712d57e-8825-4518-aae0-2d40e9f7c1f5'
+    AND evaluatorname <> 'Andrés Felipe Díaz Guzmán'
+    AND evaluationformname <> 'Depreciado - Plantilla Matriz de Demanda'
+),
+esv AS (
+    SELECT 
+        DISTINCT(evaluationid) AS evaluationid, 
+        conversationid,
+        agentid,
+        agentname,
+        CASE 
+            WHEN conversationid IN (SELECT conversationid FROM special_ids) 
+            THEN to_char(conversationstart, 'MM/YYYY')
+            ELSE to_char(releasedate, 'MM/YYYY')
+        END AS mes,
+        AVG(totalevaluationscore) AS totalevaluationscore
+    FROM gns_purecloud.evaluations
+    WHERE releasedate >= '2025-01-01'
+    GROUP BY conversationid, evaluationid, agentid, agentname, mes
+UNION
+    SELECT 
+        DISTINCT(evaluationid) AS evaluationid,
+        conversationid,
+        agentid,
+        agentname,
+        CASE 
+            WHEN conversationid IN (SELECT conversationid FROM special_ids) 
+            THEN to_char(conversationstart, 'MM/YYYY')
+            ELSE to_char(releasedate, 'MM/YYYY')
+        END AS mes,
+        AVG(totalevaluationscore) AS totalevaluationscore
+    FROM gns_2024.evaluations
+    WHERE releasedate >= '2024-01-01'
+    GROUP BY conversationid, evaluationid, agentid, agentname, mes
+)
+SELECT 
+    es.evaluationid,
+    es.fecha,
+    es.username,
+    es.userid,
+    es.questionscore,
+    es.evaluatorname,
+    es.questiongroupname,
+    es.questiontext,
+    es.queuename,
+    es.totalevaluationscore,
+    AVG(esv.totalevaluationscore) AS promedio,
+    CASE
+        WHEN AVG(esv.totalevaluationscore) >= 95 THEN 'Sobresaliente'
+        WHEN AVG(esv.totalevaluationscore) >= 90 AND AVG(esv.totalevaluationscore) < 95 THEN 'Bueno'
+        ELSE 'Por Desarrollar'
+    END AS evaluacion_categoria
+FROM 
+    es
+LEFT JOIN esv ON es.userid = esv.agentid AND es.mes = esv.mes
+GROUP BY 
+    es.evaluationid,
+    es.fecha,
+    es.username,
+    es.userid,
+    es.questionscore,
+    es.evaluatorname,
+    es.questiongroupname,
+    es.questiontext,
+    es.queuename,
+    es.totalevaluationscore
+ORDER BY 
+    es.fecha ASC
