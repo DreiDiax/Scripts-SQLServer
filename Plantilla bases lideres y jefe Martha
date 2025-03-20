@@ -1,0 +1,48 @@
+-- Plantilla base para la mayoria de solicitudes que nos han hecho
+SELECT
+FORMAT(bp.Fecha, 'dd/MM/yyyy') AS [Fecha Atencion],
+FORMAT(bp.[Fecha creacion], 'dd/MM/yyyy') AS [Fecha Creación],
+bp.[Creado por],
+bp.[ID citacion],
+bp.[Numero documento],
+bp.Aseguradora,
+CASE 
+    WHEN bp.Comentario LIKE '%CT%' THEN 1 
+    ELSE 0 
+END AS Control,
+CASE 
+    WHEN bp.Comentario LIKE '%PV%' THEN 1 
+    ELSE 0 
+END AS [Primera Vez],
+CASE
+    WHEN bp.[Creado por] IN ('F00005157', 'F00006156', 'F00006080', 'F00001045', 'F00008857',
+                            'F00003744', 'F00009487', 'F00007784', 'F00008900', 'F00002806',
+                            'F00004439', 'F00001904', 'F00004255', 'F00007263', 'F00001966',
+                            'F00008997') THEN 'preadmisiones'
+    WHEN bp.[Creado por] IN ('F00005061', 'F00002316', 'F50003794', 'F00007812', 'F00005555') THEN 'COEXT'
+    WHEN h.[Usuario de Windows/Sap] IS NOT NULL THEN 'Centro Contacto'
+    ELSE NULL
+END AS [Grupo que lo creó],
+h.Nombre as [Agente que lo creó],
+h.[Líder Asignado],
+bp.[Nombre medico] + ' ' + [Apellido medico] as [Nombre Medico],
+bp.[Tipo de cita],
+bp.[Texto causal modificacion] as [Clase de Transporte],
+bp.[Unidad organizativa],
+uo.[Nombre Especialidad],
+uo.Sede,
+c.Proceso as [Canal de Confirmacion],
+c.[Wrapup 2 (depurado)] as [Tipificacion de confirmacion]
+FROM Base_pura_sap bp
+left join [Unidades Organizativas] uo on bp.[Unidad organizativa] = uo.[Unidad organizativa]
+left join [Confirmacion_ene-ago_ivr_wp_tel] c on bp.[ID citacion]  = c.[N citacion] 
+LEFT JOIN Headcount h ON bp.[Creado por] = h.[Usuario de Windows/Sap]
+where bp.Fecha between '2024-01-01' and '2025-03-15'
+and uo.[Nombre Especialidad] in ('Anestesiología')
+
+
+-- Ver el nombre de la especialidad
+select * from [Unidades Organizativas] uo 
+
+
+
