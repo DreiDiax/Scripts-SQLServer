@@ -1,0 +1,34 @@
+SELECT
+    FORMAT(b.fecha, 'dd/MM/yyyy') AS [Fecha atencion],
+    FORMAT(b.[Fecha creacion], 'dd/MM/yyyy') AS [Fecha Creacion],
+    b.[ID citacion],
+    b.[Numero documento],
+    b.Paciente as [Historia clinica],
+    b.Prestacion,
+    b.[Edad paciente],
+    b.Nombre1 + ' ' + b.Nombre2  + ' ' + b.Apellido1 + ' ' + b.Apellido2 as [Nombre Paciente],
+    b.[Tipo de cita],
+    b.[Nombre aseguradora],
+    ca.[Tipo Aseguradora],
+    b.[Creado por] as [Creador de la cita],
+    b.[Texto causal modificacion],
+    u.[Nombre Especialidad],
+    u.Grupo,
+    CASE
+        WHEN b.[Creado por] IN ('F00005157', 'F00006156', 'F00006080', 'F00001045', 'F00008857',
+                                'F00003744', 'F00009487', 'F00007784', 'F00008900', 'F00002806',
+                                'F00004439', 'F00001904', 'F00004255', 'F00007263', 'F00001966',
+                                'F00008997') THEN 'Preadmisiones'
+        WHEN b.[Creado por] IN ('F00005061', 'F00002316', 'F50003794', 'F00007812', 'F00005555') THEN 'Consulta Externa'
+        WHEN h.[Usuario de Windows/Sap] IS NOT NULL THEN 'Centro Contacto'
+        ELSE 'Consulta Externa'  -- ✅ Corregido: comillas simples
+    END AS [Grupo del creador de la cita],
+    c.[Wrapup 2 (depurado)] as [Tipificacion en confirmacion]
+FROM Base_Pura_Sap b
+LEFT JOIN [Unidades Organizativas] u ON b.[Unidad organizativa] = u.[Unidad organizativa]
+LEFT JOIN [Loguin] l ON b.[Creado por] = l.[usuario]
+LEFT JOIN Headcount h ON b.[Creado por] = h.[Usuario de Windows/Sap]
+LEFT JOIN [Códigos Aseguradoras] ca ON b.Aseguradora = ca.[Código de Aseguradora Plan] 
+LEFT JOIN [Confirmacion_ene-ago_ivr_wp_tel] c ON b.[ID citacion] = c.[N citacion]
+WHERE b.Fecha BETWEEN '2024-01-01' AND '2025-03-20'
+AND b.[Unidad organizativa] IN ('TAANESTE', 'TCANESTE', 'TEANESTE', 'TELEESTE', 'TLIMOANT', 'TTQCANES')
