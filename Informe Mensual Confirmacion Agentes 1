@@ -3,7 +3,7 @@ WITH Citaciones AS (
         TO_CHAR(participantstarttime, 'DD/MM/YYYY') AS fecha,
         TO_CHAR(participantstarttime, 'HH24:MI:SS') AS hora,
         value AS N_Citacion,
-        key
+        key 
     FROM gns_purecloud.conversation_attributes
     WHERE purpose = 'agent'
         AND key = 'dialerContactId'
