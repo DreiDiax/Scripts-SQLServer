@@ -5,7 +5,7 @@ WITH bp AS (
 		FORMAT(Aseguradora, '0') AS Aseguradora,
 		COUNT([ID citacion]) AS Citas,
 		[Creado por],
-		[Fecha creacion],
+		[Fecha creacion], 
 		[Tipo de cita],
 		[Texto causal modificacion],
 	    [ID citacion]
