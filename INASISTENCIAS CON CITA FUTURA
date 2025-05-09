@@ -1,0 +1,37 @@
+-- Script para localizar qué inasistencias ya poseen citas futuras con el fin de no gestionarlas
+
+WITH CitasFuturas AS (
+    SELECT 
+        CONVERT(NVARCHAR(50), Paciente) AS Paciente,
+        CONVERT(NVARCHAR(50), Prestación) AS Prestacion,
+        MIN(Fecha) AS ProximaFecha
+    FROM Base_pura_futuro
+    GROUP BY CONVERT(NVARCHAR(50), Paciente), CONVERT(NVARCHAR(50), Prestación)
+)
+SELECT
+    bp.Nombre1 + ' ' + bp.Apellido1 AS [Nombre Paciente],
+    bp.Paciente AS [Historia Clinica],
+    bp.[Numero documento],
+    CONVERT(varchar, bp.Fecha, 103) AS [Fecha de cita inasistida],
+    CONVERT(varchar, cf.ProximaFecha, 103) AS [Fecha Futuro Reasignada],
+    bp.[Nombre medico] + ' ' + bp.[Apellido medico] AS [Medico con quien perdió la cita],
+    (SELECT TOP 1 [Nombre medico] + ' ' + [Apellido medico] 
+     FROM Base_pura_futuro f 
+     WHERE CONVERT(NVARCHAR(50), f.Paciente) = CONVERT(NVARCHAR(50), bp.Paciente)
+       AND CONVERT(NVARCHAR(50), f.Prestación) = CONVERT(NVARCHAR(50), bp.Prestacion)
+       AND f.Fecha = cf.ProximaFecha) AS [Medico futuro],
+    u.[Nombre Especialidad],
+    u.Lider,
+    bp.[Texto causal modificacion] AS [Cita inasistidas]
+FROM Base_Pura_Sap bp
+LEFT JOIN CitasFuturas cf ON 
+    CONVERT(NVARCHAR(50), bp.Paciente) = cf.Paciente 
+    AND CONVERT(NVARCHAR(50), bp.Prestacion) = cf.Prestacion
+    AND cf.ProximaFecha > bp.Fecha
+LEFT JOIN [Unidades Organizativas] u ON 
+    CONVERT(NVARCHAR(50), bp.[Unidad organizativa]) = CONVERT(NVARCHAR(50), u.[Unidad organizativa])
+WHERE 
+    bp.Fecha >= '2025-04-07' 
+    AND bp.Fecha < '2025-05-01'
+    AND bp.[Texto causal modificacion] LIKE 'I-%'
+    AND cf.Paciente IS NOT NULL
