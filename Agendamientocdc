@@ -1,0 +1,75 @@
+WITH bp AS(	
+	SELECT
+		FORMAT(fecha, 'dd/MM/yyyy') as fecha,
+		Hora,
+		[ID citacion],
+		Paciente,
+		[Texto causal modificacion],
+		[Unidad organizativa],
+		Aseguradora,
+		[Creado por],
+		CONVERT(date, [Fecha creacion]) as fecha_creacion,
+		([Nombre medico] + ' ' +	[Apellido medico]) as Medico,
+		[Sala cita],
+		[Indicador anulacion],
+		[Causal modificacion],
+		ROW_NUMBER() OVER (
+			PARTITION BY FORMAT(fecha, 'dd/MM/yyyy'), Hora, Paciente, [ID citacion], [Unidad organizativa]
+			ORDER BY Paciente, [Unidad organizativa], fecha, [Indicador anulacion], [Causal modificacion]
+		) AS rn
+	FROM
+		CentroContacto.dbo.Base_Pura_Sap
+	WHERE Fecha BETWEEN '2024-10-25' and '2024-12-20'
+	AND [Creado por] in ('F00008271')
+),
+hc AS(
+	SELECT
+		[Usuario de Windows/Sap],
+		Nombre,
+		[Líder Asignado],
+		[Fecha Ingreso Agente],
+		Estado,
+		CONVERT(date, [Fecha de Egreso]) AS fecha_egreso,
+		[Motivo Egreso]
+	FROM
+		CentroContacto.dbo.Headcount
+),
+uo AS(
+	SELECT
+		[Unidad organizativa],
+		Grupo,
+		Sede,
+		[Nombre Especialidad]
+	FROM
+		CentroContacto.dbo.[Unidades Organizativas]
+),
+a AS(
+	SELECT
+		[Código de Aseguradora Plan],
+		[Nombre / R#Social_(Reporte MCSI)],
+		[Tipo Aseguradora]
+	FROM
+		CentroContacto.dbo.[Códigos Aseguradoras]
+)
+SELECT
+	bp.fecha,
+	bp.[Creado por],
+	bp.[ID citacion],
+	CASE 
+		WHEN bp.[Texto causal modificacion]= '' THEN 'SIN CLASE DE TRANSPORTE'
+		ELSE bp.[Texto causal modificacion]
+	END AS [Texto causal modificacion],
+	CASE
+		WHEN hc.[Usuario de Windows/Sap] = bp.[Creado por] AND 
+             (hc.fecha_egreso IS NULL OR hc.fecha_egreso > bp.fecha_creacion) THEN 'Centro de contacto'
+		ELSE 'Otras áreas'
+	END AS Creado_por,
+	bp.[Unidad organizativa],
+	a.[Nombre / R#Social_(Reporte MCSI)] as Aseguradora,
+	a.[Tipo Aseguradora],
+	bp.Medico,
+	bp.[Sala cita]
+FROM bp
+LEFT JOIN hc ON bp.[Creado por] = hc.[Usuario de Windows/Sap]
+LEFT JOIN a ON bp.Aseguradora = a.[Código de Aseguradora Plan]
+WHERE bp.rn = 1
