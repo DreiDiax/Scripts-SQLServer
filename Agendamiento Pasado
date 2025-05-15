@@ -1,0 +1,22 @@
+
+-- Script para descargar la base de agendamiento pasado
+
+SELECT DISTINCT 
+    bp.[ID citacion],
+    CONVERT(varchar, bp.Fecha, 103) AS [Fecha], 
+    CONVERT(varchar, bp.Hora, 108) AS [Hora],
+    bp.Episodio,
+    bp.Nombre1 + ' ' + bp.Nombre2 + ' ' + bp.Apellido1 + ' ' + bp.Apellido2 as [Nombre Paciente],
+    bp.[Texto causal modificacion] as [Clase de Transporte],
+    bp.Aseguradora,
+    bp.[Nombre aseguradora],
+    bp.[Nombre medico] + ' ' + bp.[Apellido medico] as [Medico Tratante],
+    bp.[Sala cita],
+    bp.[Tipo de cita],
+    bp.Prestacion,
+    uo.Grupo
+FROM Base_Pura_Sap bp
+LEFT JOIN [Unidades Organizativas] uo ON bp.[Unidad organizativa] = uo.[Unidad organizativa]
+WHERE bp.Fecha BETWEEN '2024-01-01' AND '2024-12-31'
+AND (bp.[Sala cita] IS NOT NULL AND bp.[Sala cita] <> '')
+AND uo.Grupo = 'Consulta Externa'
