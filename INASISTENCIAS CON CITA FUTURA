@@ -3,7 +3,7 @@
 WITH CitasFuturas AS (
     SELECT 
         CONVERT(NVARCHAR(50), Paciente) AS Paciente,
-        CONVERT(NVARCHAR(50), Prestación) AS Prestacion,
+        CONVERT(NVARCHAR(50), Prestación) AS Prestacion, 
         MIN(Fecha) AS ProximaFecha 
     FROM Base_pura_futuro
     GROUP BY CONVERT(NVARCHAR(50), Paciente), CONVERT(NVARCHAR(50), Prestación)
