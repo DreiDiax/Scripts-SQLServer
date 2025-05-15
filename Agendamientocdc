@@ -19,8 +19,7 @@ WITH bp AS(
 		) AS rn
 	FROM
 		CentroContacto.dbo.Base_Pura_Sap
-	WHERE Fecha BETWEEN '2024-10-25' and '2024-12-20'
-	AND [Creado por] in ('F00008271')
+	WHERE Fecha >= '2024-01-01'
 ),
 hc AS(
 	SELECT
