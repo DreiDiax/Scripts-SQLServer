@@ -6,7 +6,7 @@ bp.[Creado por],
 bp.[ID citacion],
 bp.[Numero documento],
 bp.Aseguradora,
-CASE 
+CASE  
     WHEN bp.Comentario LIKE '%CT%' THEN 1 
     ELSE 0 
 END AS Control,
