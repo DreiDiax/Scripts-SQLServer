@@ -1,0 +1,118 @@
+WITH bp AS(
+SELECT
+		FORMAT(fecha,
+	'dd/MM/yyyy') as fecha,
+		Hora,
+		[ID citacion],
+		Paciente,
+		[Texto causal modificacion],
+		[Unidad organizativa],
+		Aseguradora,
+		[Creado por],
+		CONVERT(date,
+		[Fecha creacion]) as fecha_creacion,
+		([Nombre medico] + ' ' + [Apellido medico]) as Medico,
+		[Sala cita],
+		[Indicador anulacion], 
+		[Texto status prestacion],
+		[Tipo de cita],
+		[Causal modificacion],
+		ROW_NUMBER() OVER (
+			PARTITION BY FORMAT(fecha,
+	'dd/MM/yyyy'),
+	Hora,
+	Paciente,
+	[ID citacion],
+	[Unidad organizativa]
+ORDER BY
+	Paciente,
+	[Unidad organizativa],
+	fecha,
+	[Indicador anulacion],
+	[Causal modificacion]
+		) AS rn
+FROM
+		CentroContacto.dbo.Base_Pura_Sap
+WHERE
+	Fecha >= '2025-03-01'
+),
+hc AS(
+SELECT
+		[Usuario de Windows/Sap],
+		Nombre,
+		[Líder Asignado],
+		[Fecha Ingreso Agente],
+		Estado,
+		CONVERT(date,
+	[Fecha de Egreso]) AS fecha_egreso,
+		[Motivo Egreso]
+FROM
+		CentroContacto.dbo.Headcount
+),
+l AS(
+SELECT
+	Usuario,
+	Nompropio,
+	Departamento
+FROM
+	CentroContacto.dbo.[Login]
+),
+uo AS(
+SELECT
+		[Unidad organizativa],
+		Grupo,
+		Sede,
+		[Nombre Especialidad]
+FROM
+		CentroContacto.dbo.[Unidades Organizativas]
+),
+a AS(
+SELECT
+		[Código de Aseguradora Plan],
+		[Nombre / R#Social_(Reporte MCSI)],
+		[Tipo Aseguradora]
+FROM
+		CentroContacto.dbo.[Códigos Aseguradoras]
+)
+SELECT
+	bp.fecha,
+	bp.[ID citacion],
+	CASE 
+		WHEN bp.[Texto causal modificacion] = '' THEN 'SIN CLASE DE TRANSPORTE'
+		ELSE bp.[Texto causal modificacion]
+	END AS [Texto causal modificacion],
+	CASE
+		WHEN hc.[Usuario de Windows/Sap] = bp.[Creado por]
+		AND 
+             (hc.fecha_egreso IS NULL
+			OR hc.fecha_egreso > bp.fecha_creacion) THEN 'Centro de contacto'
+		ELSE 'Otras áreas'
+	END AS Creado_por,
+	CASE
+		WHEN hc.Nombre IS NULL THEN l.Nompropio
+		ELSE hc.Nombre
+	END AS Nombre,
+	uo.[Nombre Especialidad],
+	uo.Grupo,
+	uo.Sede,
+	CASE
+		WHEN bp.Medico = '' THEN 'SIN MÉDICO'
+		ELSE bp.Medico
+	END AS Médico
+FROM
+	bp
+LEFT JOIN hc ON
+	bp.[Creado por] = hc.[Usuario de Windows/Sap]
+LEFT JOIN a ON
+	bp.Aseguradora = a.[Código de Aseguradora Plan]
+LEFT JOIN uo ON
+	bp.[Unidad organizativa] = uo.[Unidad organizativa]
+LEFT JOIN l ON
+	bp.[Creado por] = l.Usuario
+WHERE
+	bp.rn = 1
+	AND bp.[Sala cita] = ''
+	AND bp.[Texto status prestacion] <> 'Anulada'
+	AND bp.[Tipo de cita] <> 'CANCELADA'
+	AND uo.Grupo = 'Consulta Externa'
+	AND uo.Sede <> 'Teleconsulta'
