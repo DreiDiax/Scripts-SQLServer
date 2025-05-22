@@ -1,7 +1,6 @@
 WITH bp AS(
 SELECT
-		FORMAT(fecha,
-	'dd/MM/yyyy') as fecha,
+		FORMAT(fecha,'dd/MM/yyyy') as fecha,
 		Hora,
 		[ID citacion],
 		Paciente,
@@ -23,7 +22,8 @@ SELECT
 	Hora,
 	Paciente,
 	[ID citacion],
-	[Unidad organizativa]
+	[Unidad organizativa],
+	[Creado por]
 ORDER BY
 	Paciente,
 	[Unidad organizativa],
@@ -34,7 +34,10 @@ ORDER BY
 FROM
 		CentroContacto.dbo.Base_Pura_Sap
 WHERE
-	Fecha >= '2025-03-01'
+	Fecha >= '2024-01-01'
+AND [Texto status prestacion] NOT IN ('Anulada')
+AND [Tipo de cita] NOT IN ('CANCELADA')
+AND [Sala cita] = ''
 ),
 hc AS(
 SELECT
@@ -92,9 +95,11 @@ SELECT
 		WHEN hc.Nombre IS NULL THEN l.Nompropio
 		ELSE hc.Nombre
 	END AS Nombre,
+	bp.[Creado por],
 	uo.[Nombre Especialidad],
 	uo.Grupo,
 	uo.Sede,
+	bp.[Sala cita],
 	CASE
 		WHEN bp.Medico = '' THEN 'SIN MÉDICO'
 		ELSE bp.Medico
@@ -111,8 +116,5 @@ LEFT JOIN l ON
 	bp.[Creado por] = l.Usuario
 WHERE
 	bp.rn = 1
-	AND bp.[Sala cita] = ''
-	AND bp.[Texto status prestacion] <> 'Anulada'
-	AND bp.[Tipo de cita] <> 'CANCELADA'
 	AND uo.Grupo = 'Consulta Externa'
 	AND uo.Sede <> 'Teleconsulta'
