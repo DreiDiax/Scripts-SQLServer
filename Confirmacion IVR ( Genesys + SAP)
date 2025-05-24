@@ -1,0 +1,26 @@
+-- CONFIRMACIOIN IVR CON GENESYS
+
+with 
+a as ( 
+select * from CentroContacto.dbo.[Confirmacion WhatsApp]
+),
+b as (
+select * from Genesys.dbo.[Confirmación WhatsApp]
+)
+select
+    CONVERT(VARCHAR, a.fecha, 103) AS [Fecha Envío],
+    CONVERT(VARCHAR, a.hora, 108) AS [Hora Envío], 
+a.[N documento],
+a.[N citacion],
+a.[UO de tratamiento (denominacion breve)],
+a.[Medico de tratamiento (nombre)],
+a.Aseguradora,
+a.[Concatenar número],
+a.[Clase transporte],
+a.[Especialidad],
+a.Tipo,
+COALESCE(b.Estado, 'No ubicado') AS Estado,
+b.queuename
+FROm a
+left join b on a.[N citacion] = b.id_cita
+
