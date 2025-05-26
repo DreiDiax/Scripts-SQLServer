@@ -14,7 +14,7 @@ WITH bp AS(
 		[Indicador anulacion],
 		[Causal modificacion],
 		ROW_NUMBER() OVER (
-			PARTITION BY FORMAT(fecha, 'dd/MM/yyyy'), Hora, Paciente, [ID citacion], [Unidad organizativa]
+			PARTITION BY FORMAT(fecha, 'dd/MM/yyyy'), Hora, Paciente, [ID citacion], [Unidad organizativa], [Creado por]
 			ORDER BY Paciente, [Unidad organizativa], fecha, [Indicador anulacion], [Causal modificacion]
 		) AS rn
 	FROM
