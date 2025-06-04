@@ -7,7 +7,7 @@ SELECT
     b.Prestacion,
     b.[Edad paciente],
     b.Nombre1 + ' ' + b.Nombre2  + ' ' + b.Apellido1 + ' ' + b.Apellido2 as [Nombre Paciente],
-    b.[Tipo de cita], 
+    b.[Tipo de cita],  
     b.[Nombre aseguradora],
     ca.[Tipo Aseguradora],
     b.[Creado por] as [Creador de la cita],
