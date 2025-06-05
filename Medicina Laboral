@@ -1,0 +1,99 @@
+WITH bp AS(	
+	SELECT
+		FORMAT(fecha, 'dd/MM/yyyy') as fecha,
+		Hora,
+		[ID citacion],
+		Paciente,
+		[Texto causal modificacion],
+		[Unidad organizativa],
+		Aseguradora,
+		[Creado por],
+		CONVERT(date, [Fecha creacion]) as fecha_creacion,
+		([Nombre medico] + ' ' +	[Apellido medico]) as Medico,
+		[Sala cita],
+		[Indicador anulacion],
+		[Causal modificacion],
+		[Tipo de cita],
+		CASE
+			WHEN [Unidad organizativa] = 'TTQEXAAU' AND (Aseguradora IN ('1000000377','1000004187')) THEN 'Medicina Laboral'
+			WHEN [Unidad organizativa] IN ('TTQMELAB','TCMEDLAB') THEN 'Medicina Laboral'
+			ELSE '' 
+		END AS M_Laboral,		
+		ROW_NUMBER() OVER (
+			PARTITION BY FORMAT(fecha, 'dd/MM/yyyy'), Hora, Paciente, [ID citacion], [Unidad organizativa]
+			ORDER BY Paciente, [Unidad organizativa], fecha, [Indicador anulacion], [Causal modificacion]
+		) AS rn
+	FROM
+		CentroContacto.dbo.Base_Pura_Sap
+	WHERE Fecha >= '2025-01-01'
+	AND [Unidad organizativa] IN ('TTQMELAB','TCMEDLAB','TTQEXAAU')
+),
+hc AS(
+	SELECT
+		[Usuario de Windows/Sap],
+		Nombre,
+		[Líder Asignado],
+		[Fecha Ingreso Agente],
+		Estado,
+		CONVERT(date, [Fecha de Egreso]) AS fecha_egreso,
+		[Motivo Egreso]
+	FROM
+		CentroContacto.dbo.Headcount
+),
+uo AS(
+	SELECT
+		[Unidad organizativa],
+		Grupo,
+		Sede,
+		[Nombre Especialidad]
+	FROM
+		CentroContacto.dbo.[Unidades Organizativas]
+	WHERE Grupo IN ('Consulta externa', 'Ambulatorios', 'Gestión humana')
+),
+a AS(
+	SELECT
+		[Código de Aseguradora Plan],
+		[Nombre / R#Social_(Reporte MCSI)],
+		[Tipo Aseguradora]
+	FROM
+		CentroContacto.dbo.[Códigos Aseguradoras]
+),
+c AS(
+	SELECT
+		Proceso,
+		[N citacion],
+		[Wrapup 2 (depurado)],
+		ROW_NUMBER() OVER (
+			PARTITION BY [N citacion]
+			ORDER BY Efectividad DESC
+		) AS rn_c
+	FROM
+		CentroContacto.dbo.[Confirmacion_ene-ago_ivr_wp_tel]
+)
+SELECT
+	bp.fecha,
+	bp.[Creado por],
+	bp.[ID citacion],
+	CASE 
+		WHEN bp.[Texto causal modificacion]= '' THEN 'SIN CLASE DE TRANSPORTE'
+		ELSE bp.[Texto causal modificacion]
+	END AS [Texto causal modificacion],
+	CASE
+		WHEN hc.[Usuario de Windows/Sap] = bp.[Creado por] AND 
+             (hc.fecha_egreso IS NULL OR hc.fecha_egreso > bp.fecha_creacion) THEN 'Centro de contacto'
+		ELSE 'Otras áreas'
+	END AS Agendado_por,
+	uo.Sede,
+	bp.[Unidad organizativa],
+	bp.Medico,
+	bp.[Tipo de cita],
+	bp.[Sala cita],
+	c.Proceso,
+	c.[Wrapup 2 (depurado)]
+FROM bp
+LEFT JOIN hc ON bp.[Creado por] = hc.[Usuario de Windows/Sap]
+LEFT JOIN a ON bp.Aseguradora = a.[Código de Aseguradora Plan]
+LEFT JOIN uo ON bp.[Unidad organizativa] = uo.[Unidad organizativa]
+LEFT JOIN c ON bp.[ID citacion] = c.[N citacion] AND c.rn_c = 1
+WHERE bp.rn = 1
+AND bp.M_Laboral = 'Medicina Laboral'
