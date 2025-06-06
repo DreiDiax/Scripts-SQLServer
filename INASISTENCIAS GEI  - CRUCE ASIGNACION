@@ -1,0 +1,60 @@
+-- SRIPT CRUCE DE ASIGNACION PARA INASISTENCIAS DEL INFORME DETALLE MEDICO
+
+
+WITH DatosBase AS (
+    SELECT 
+        DATEFROMPARTS(YEAR(bp.Fecha), MONTH(bp.Fecha), 1) AS MES,
+        YEAR(bp.Fecha) AS Año,
+        CASE 
+            WHEN u.[Nombre Especialidad] IN (
+                'Alergología',
+                'Fisiatría',
+                'Gastroenterología',
+                'Gastroenterología Pediátrica',
+                'Medicina Familiar',
+                'Medicina Interna',
+                'Neumología Pediátrica',
+                'Neurología Pediátrica',
+                'Nutrición',
+                'Odontología Pediátrica',
+                'Oftalmologia',
+                'Optometría',
+                'Ortóptica'
+            ) THEN u.[Nombre Especialidad]
+            ELSE 'No Albert'
+        END AS Especialidad,
+        CASE 
+            WHEN LEFT(bp.[Texto causal modificacion], 2) = 'i-' THEN 1
+            ELSE 0
+        END AS EsInasistencia,
+        1 AS EsCita
+    FROM Base_Pura_Sap bp
+    LEFT JOIN [Unidades Organizativas] u ON bp.[Unidad organizativa] = u.[Unidad organizativa] 
+    WHERE bp.Fecha >= '2024-06-01 00:00'
+),
+
+Resumen AS (
+    SELECT 
+        MES,
+        Año,
+        Especialidad,
+        SUM(EsInasistencia) AS Inasistencias,
+        SUM(EsCita) AS Agendadas
+    FROM DatosBase
+    GROUP BY MES, Año, Especialidad
+)
+
+SELECT 
+    MES,
+    Año,
+    Especialidad,
+    Inasistencias,
+    Agendadas,
+    CASE 
+        WHEN Agendadas = 0 THEN 0.0
+        ELSE ROUND(CAST(Inasistencias AS FLOAT) / CAST(Agendadas AS FLOAT), 4)
+    END AS Porcentaje
+FROM Resumen
+ORDER BY MES, 
+    CASE WHEN Especialidad = 'No Albert' THEN 999 ELSE 0 END,
+    Especialidad;
