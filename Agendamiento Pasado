@@ -4,7 +4,7 @@
 SELECT DISTINCT 
     bp.[ID citacion],
     CONVERT(varchar, bp.Fecha, 103) AS [Fecha],  
-    CONVERT(varchar, bp.Hora, 108) AS [Hora],
+    CONVERT(varchar, bp.Hora, 108) AS [Hora], 
     bp.Episodio,
     bp.Nombre1 + ' ' + bp.Nombre2 + ' ' + bp.Apellido1 + ' ' + bp.Apellido2 as [Nombre Paciente],
     bp.[Texto causal modificacion] as [Clase de Transporte],
