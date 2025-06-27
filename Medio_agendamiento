@@ -1,0 +1,135 @@
+WITH bp AS (
+SELECT
+		CONVERT (date,
+	Fecha) as Fecha,
+		CONVERT (time,
+	Hora) as Hora,
+		Paciente,
+		[ID citacion],
+		[Numero documento],
+		[Texto causal modificacion],
+		[Unidad organizativa],
+		Aseguradora,
+		[Fecha creacion],
+		CONVERT (date,[Fecha creacion]) as Fecha_creacion,
+		[Creado por],
+		([Nombre medico] + ' ' + [Apellido medico]) as Medico,
+		[Sala cita],
+		[Tipo de cita],
+		[Fecha deseada],
+		Prestacion,
+		Descripcion,
+		[Texto status prestacion],
+		[Edad paciente],
+		[Indicador anulacion],
+		[Causal modificacion],
+		ROW_NUMBER() OVER (
+			PARTITION BY FORMAT(fecha,
+	'dd/MM/yyyy'),
+	Hora,
+	Paciente,
+	[ID citacion],
+	[Unidad organizativa]
+ORDER BY
+	Paciente,
+	[Unidad organizativa],
+	fecha,
+	[Indicador anulacion],
+	[Causal modificacion]
+		) AS rn
+FROM
+		CentroContacto.dbo.Base_Pura_Sap
+WHERE
+	Fecha >= '2024-06-01'
+	AND Paciente NOT IN ('929833', '1510904', '34945', '541544', '244097',
+	'609990', '1831369', '1802972', '472796', '15466', '406556', '79450',
+	'891314', '185976', '1487394', '1319585', '217256', '1873023', '588320',
+	'87084', '106691', '856301', '756228', '1852003', '393591', '830175', '780952', '1592793')
+),
+a AS (
+SELECT
+	[Código de Aseguradora Plan],
+	[Nombre / R#Social_(Reporte MCSI)],
+	Agrupador,
+	Cl#Aseguradora,
+	[Tipo Aseguradora],
+	[N° Identificación Tributaria],
+	Traduccion
+FROM
+	CentroContacto.dbo.[Códigos Aseguradoras]
+WHERE
+	Agrupador = 'POL. INTERNA'
+	OR Cl#Aseguradora = 'EPJ'
+),
+uo AS (
+SELECT
+		[Unidad organizativa],
+		Grupo,
+		Lider,
+		Sede,
+		[Nombre Especialidad]
+FROM
+		CentroContacto.dbo.[Unidades Organizativas]
+),
+l AS (
+	SELECT
+		Usuario,
+		[Nombre completo],
+		Departamento,
+		Función
+	FROM
+		CentroContacto.dbo.[Login]
+),
+hc AS(
+	SELECT
+		[Usuario de Windows/Sap],
+		Nombre,
+		[Líder Asignado],
+		[Fecha Ingreso Agente],
+		[Cola Principal],
+		Estado,
+		CONVERT(date, [Fecha de Egreso]) AS Fecha_egreso,
+		[Motivo Egreso]
+	FROM
+		CentroContacto.dbo.Headcount
+)
+SELECT
+	FORMAT(bp.Fecha,
+	'dd/MM/yyyy') AS Fecha,
+	bp.Hora,
+	bp.[ID citacion],
+	bp.paciente,
+	bp.[Texto causal modificacion],
+	bp.[Unidad organizativa],
+	uo.[Nombre Especialidad],
+	a.[Nombre / R#Social_(Reporte MCSI)],
+	l.[Nombre completo],
+	l.Departamento,
+	CASE
+	WHEN hc.[Usuario de Windows/Sap] = bp.[Creado por] AND 
+         (hc.Fecha_egreso IS NULL OR hc.Fecha_egreso > bp.Fecha_creacion) THEN 'Centro de contacto'
+	ELSE 'Otras áreas'
+	END AS agendado_por,
+	CASE 
+		WHEN hc.[Cola Principal] LIKE '%Ext%' OR hc.[Cola Principal] LIKE '%Confirmacion%' OR hc.[Cola Principal] LIKE '%Tareas operativas%' THEN 'Línea' 
+		WHEN hc.[Cola Principal] = 'Supernumeraria' AND hc.[Líder Asignado] = 'Leydi Yessenia Ospina Posada' THEN 'WhatsApp'
+		WHEN hc.[Cola Principal] = 'Supernumeraria' AND hc.[Líder Asignado] != 'Leydi Yessenia Ospina Posada' THEN 'Línea'
+		WHEN hc.[Cola Principal] LIKE '%WhatsApp%' THEN 'WhatsApp'
+		WHEN hc.[Cola Principal] LIKE '%Drive%' THEN 'Drive'
+		ELSE hc.[Cola Principal]
+	END AS Medio_Agendamiento,	
+	hc.[Cola Principal],
+	bp.Medico,
+	bp.[Sala cita],
+	bp.[Tipo de cita],
+	bp.Prestacion,
+	bp.Descripcion
+FROM
+	bp
+LEFT JOIN a ON bp.Aseguradora = a.[Código de Aseguradora Plan]
+LEFT JOIN uo ON bp.[Unidad organizativa] = uo.[Unidad organizativa]
+LEFT JOIN l ON bp.[Creado por] = l.Usuario
+LEFT JOIN hc ON bp.[Creado por] = hc.[Usuario de Windows/Sap]
+WHERE
+	bp.rn = 1
+	AND a.[Nombre / R#Social_(Reporte MCSI)] is not null
