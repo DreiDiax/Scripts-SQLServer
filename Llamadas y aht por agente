@@ -1,0 +1,72 @@
+with 
+asv as (
+	select
+		to_char(conversationstarttime,'DD/MM/YYYY') as fecha,
+		conversationid,
+		username,
+		queuename,
+		sum(answered) as answered
+	from
+		gns_purecloud.agent_summary_v2
+	where
+		userid = '77a54fa7-e409-43f2-8b5e-4aa9ed082638'
+		and answered = 1
+		and mediatype in ('voice', 'message','callback')
+		and direction = 'inbound'
+		group by 
+		fecha,
+		conversationid,
+		username,
+		queuename
+	order by fecha asc
+),
+cd as (
+	select 
+		conversationid,
+		username,
+		to_char(segmentstart,'HH24:MI:SS') as hora,
+		wrapupcodename
+	from 
+		gns_purecloud.conversations_details
+	where segmenttype = 'wrapup'
+	and direction = 'inbound'
+),
+ash as (
+		select
+		to_char(conversationstarttime,'DD/MM/YYYY') as fecha,
+		conversationid,
+		username,
+		queuename,
+		sum(handle) as handle
+	from
+		gns_purecloud.agent_summary_v2
+	where
+		userid = '77a54fa7-e409-43f2-8b5e-4aa9ed082638'
+		and chandle = 1
+		and mediatype in ('voice', 'message','callback')
+		and direction = 'inbound'
+		group by
+		fecha,
+		conversationid,
+		username,
+		queuename
+)
+select
+	asv.fecha,
+	cd.hora,
+	asv.conversationid,
+	cd.wrapupcodename,
+	asv.username,
+	asv.queuename,
+	ash.handle
+from asv
+left join cd on asv.conversationid = cd.conversationid and asv.username = cd.username
+left join ash on asv.conversationid = ash.conversationid 
+group by
+	asv.fecha,
+	cd.hora,
+	asv.conversationid,
+	cd.wrapupcodename,
+	asv.username,
+	asv.queuename,
+	ash.handle
