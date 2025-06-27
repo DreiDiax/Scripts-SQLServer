@@ -1,0 +1,106 @@
+SELECT 
+	FORMAT(fecha, 'dd/MM/yyyy') as Fecha,
+	Hora,
+	Episodio,
+	[Clase Episodio],
+	Paciente,
+	Apellido1,
+	Apellido2,
+	Nombre1,
+	Nombre2,
+	[ID citación],
+	[Num Dcto],
+	[Fecha naci#],
+	[Causal modificación],
+	[Texto: causal modificación],
+	[Motivo de modificación],
+	[Uo Plan],
+	Aseguradora,
+	[Nom Aseg#],
+	[Indicador Anulación],
+	[Nombre responsable anulación],
+	[Fecha de anulación],
+	[Motivo de anulación de una citación],
+	Mes,
+	[Fecha crea#],
+	[Nom#unidad organizativa],
+	[Creado por],
+	[Fecha mod#],
+	[Modif# por],
+	[Nombre completo],
+	[Cod# Medico Tratante],
+	[Nombre completo1],
+	[Nombre medico],
+	[Apellido medico],
+	[Sala cita],
+	[Tp# plan],
+	Comentario,
+	Indicador,
+	[Status cita],
+	[Num Cita],
+	[Tipo de Cita],
+	Teléfono,
+	Dirección,
+	Email,
+	[Fecha deseada],
+	Prest#actual,
+	Prestación,
+	Descripción,
+	[Status de prestación],
+	[Texto status prest#],
+	[Edad paciente],
+	[Hora de Creación],
+	Exitus,
+	[Medio de contacto],
+	CASE 
+		WHEN Descripción LIKE 'LABORATORIO%' THEN 'Laboratorio'
+		WHEN Descripción LIKE '%CARDIACO%' THEN 'Cardiaco'
+		ELSE 'Post-trasplante'
+	END AS Detalle
+FROM
+	CentroContacto.dbo.Base_pura_futuro
+WHERE 
+	Fecha BETWEEN '2025-07-01' and '2025-07-31'
+AND
+	Aseguradora IN (
+	'1000000201',
+	'1000002754',
+	'1000002753',
+	'1000003583',
+	'1000002778',
+	'1000000198',
+	'1000002777',
+	'1000001426',
+	'1000003028',
+	'1000000330',
+	'1000002408',
+	'1000001091'
+	)
+AND
+	[Uo Plan] IN (
+	'TTQCQHEP',
+	'TALFLINT',
+	'TEINMTRA',
+	'TINTRCEN',
+	'TINMTRAS',
+	'TLIMOLIT',
+	'TTQINMTR',
+	'TTELTXPL',
+	'TTEUTXPL',
+	'TTRAMEDO',
+	'TATRASPL',
+	'TETRASPL',
+	'TLIMOTRA',
+	'TELEASPL',
+	'TCTRASPL',
+	'TTQCTRAS',
+	'TAFALLCA',
+	'TEFALLCA',
+	'TCFALLCA',
+	'TLIMOFCA',
+	'TELELLCA',
+	'TTQCFALL',
+	'TTELLLCA'
+	)
+AND
+	(Descripción LIKE '%POST%' OR Descripción LIKE 'LABORATORIO%')
