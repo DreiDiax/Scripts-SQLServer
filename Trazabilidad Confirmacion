@@ -1,0 +1,74 @@
+
+SELECT 
+    YEAR([Fecha]) AS Año,
+    MONTH([Fecha]) AS MesNumero,
+    CASE MONTH([Fecha])
+        WHEN 1 THEN 'Enero'
+        WHEN 2 THEN 'Febrero'
+        WHEN 3 THEN 'Marzo'
+        WHEN 4 THEN 'Abril'
+        WHEN 5 THEN 'Mayo'
+        WHEN 6 THEN 'Junio'
+        WHEN 7 THEN 'Julio'
+        WHEN 8 THEN 'Agosto'
+        WHEN 9 THEN 'Septiembre'
+        WHEN 10 THEN 'Octubre'
+        WHEN 11 THEN 'Noviembre'
+        WHEN 12 THEN 'Diciembre'
+    END AS Mes,
+    COUNT(DISTINCT [N citacion]) AS [Total Pacientes Únicos],
+    COUNT(DISTINCT CASE WHEN [Efectividad] = 'ubicado' THEN [N citacion] END) AS [Pacientes Ubicados Únicos],
+    COUNT(DISTINCT CASE WHEN [Confirmado] = 'confirmado' THEN [N citacion] END) AS [Pacientes Confirmados Únicos],
+    COUNT(DISTINCT CASE WHEN [Confirmado] = 'confirmado' AND [Atendidas] = 'ATENDIDA' 
+                        THEN [N citacion] END) AS [Confirmados y Atendidos Únicos],
+    COUNT(DISTINCT CASE WHEN [Efectividad] = 'ubicado' AND 
+                               [Un#org#tratamiento] IN (
+                                   'TCALERGO', 'TCENDOPE', 'TCFISIAT', 'TCGASPED', 
+                                   'TCGASTRO', 'TCMEDFAM', 'TCMINTER', 'TCNEUROP', 
+                                   'TCNUTRIC', 'TCODOPED', 'TCOFTALM', 'TCOPTOME', 
+                                   'TCORTOPT', 'TCOTORRI', 'TCPSICOL', 'TANEUPED', 
+                                   'TCSICONC', 'TCSIQUIA', 'TCREUMPE'
+                               )
+                        THEN [N citacion] END) AS [Ubicados Críticos Únicos],
+    COUNT(DISTINCT CASE WHEN [Confirmado] = 'confirmado' AND 
+                               [Un#org#tratamiento] IN (
+                                   'TCALERGO', 'TCENDOPE', 'TCFISIAT', 'TCGASPED', 
+                                   'TCGASTRO', 'TCMEDFAM', 'TCMINTER', 'TCNEUROP', 
+                                   'TCNUTRIC', 'TCODOPED', 'TCOFTALM', 'TCOPTOME', 
+                                   'TCORTOPT', 'TCOTORRI', 'TCPSICOL', 'TANEUPED', 
+                                   'TCSICONC', 'TCSIQUIA', 'TCREUMPE'
+                               )
+                        THEN [N citacion] END) AS [Confirmados Críticos Únicos],
+    COUNT(DISTINCT CASE WHEN [Confirmado] = 'confirmado' AND [Atendidas] = 'ATENDIDA'
+                               AND [Un#org#tratamiento] IN (
+                                   'TCALERGO', 'TCENDOPE', 'TCFISIAT', 'TCGASPED', 
+                                   'TCGASTRO', 'TCMEDFAM', 'TCMINTER', 'TCNEUROP', 
+                                   'TCNUTRIC', 'TCODOPED', 'TCOFTALM', 'TCOPTOME', 
+                                   'TCORTOPT', 'TCOTORRI', 'TCPSICOL', 'TANEUPED', 
+                                   'TCSICONC', 'TCSIQUIA', 'TCREUMPE'
+                               )
+                        THEN [N citacion] END) AS [Confirmados Atendidos Críticos Únicos]
+FROM 
+    [dbo].[Confirmacion_ene-ago_ivr_wp_tel]
+WHERE
+    [Fecha] IS NOT NULL
+    and fecha >= '2025-01-01'
+GROUP BY 
+    YEAR([Fecha]),
+    MONTH([Fecha]),
+    CASE MONTH([Fecha])
+        WHEN 1 THEN 'Enero'
+        WHEN 2 THEN 'Febrero'
+        WHEN 3 THEN 'Marzo'
+        WHEN 4 THEN 'Abril'
+        WHEN 5 THEN 'Mayo'
+        WHEN 6 THEN 'Junio'
+        WHEN 7 THEN 'Julio'
+        WHEN 8 THEN 'Agosto'
+        WHEN 9 THEN 'Septiembre'
+        WHEN 10 THEN 'Octubre'
+        WHEN 11 THEN 'Noviembre'
+        WHEN 12 THEN 'Diciembre'
+    END
+ORDER BY 
+    Año, MesNumero;
