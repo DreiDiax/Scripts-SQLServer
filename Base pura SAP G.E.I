@@ -1,5 +1,5 @@
 WITH bp AS(	
-	SELECT
+	SELECT 
 		FORMAT(fecha, 'dd/MM/yyyy') as fecha,
 		Hora,
 		[ID citacion],
