@@ -1,0 +1,26 @@
+WITH tl AS (
+	SELECT
+		SUBSTRING([correo del trabajo], 1, PATINDEX('%@%', [correo del trabajo]) - 1) AS usuario,
+		CONVERT(date,[Fecha de inicio]) as [Fecha de inicio],
+		[Hora de inicio],
+		[Motivo del permiso] as Detalle,
+		Notas
+	FROM
+		CentroContacto.dbo.[Tiempo Libre]
+UNION
+	SELECT
+		SUBSTRING([correo del trabajo], 1, PATINDEX('%@%', [correo del trabajo]) - 1) AS usuario,
+		CONVERT(date,[Fecha de inicio]) as [Fecha de inicio],
+		[Hora de inicio],
+		[Etiqueta personalizada] as Detalle,
+		Notas
+	FROM
+		CentroContacto.dbo.Turnos
+)
+SELECT
+	tl.usuario,
+	tl.[Fecha de inicio],
+	tl.[Hora de inicio],
+	tl.Detalle,
+	tl.Notas
+FROM tl
