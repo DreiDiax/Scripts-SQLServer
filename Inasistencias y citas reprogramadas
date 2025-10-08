@@ -1,0 +1,102 @@
+WITH gi AS (
+	SELECT
+		convert(date, Fecha) as fecha,
+		[N citacion],
+		[Clase transporte],
+		Agente,
+		Prestacion,
+		Especialidad,
+		FORMAT([N documento], '0') AS [N documento],
+		Un#org#tratamiento
+	FROM
+		CentroContacto.dbo.GestionInasistencias
+	WHERE Fecha >= '2025-10-01'
+),
+cl as(
+	SELECT
+		[ID citación],
+		Paciente,
+		[Nombre del medico],
+		[Modificado por],
+		convert(date,[Modificado el]) as fechamod,
+		Anulado,
+		[Anulado por],
+		[Anulado el],
+		[Usuario Modifica Cl# Trans],
+		[Den# Anter],
+		[Den# Nueva]
+	FROM
+		CentroContacto.dbo.ClaseTransporte
+	where [Den# Anter] = 'I-Pac no presen'
+),
+uo as (
+	SELECT
+		[Unidad organizativa],
+		Grupo,
+		Lider,
+		[Nombre Especialidad]
+	FROM
+		CentroContacto.dbo.[Unidades Organizativas]	
+),
+hc as (
+	select
+		Nombre,
+		[Correo institucional] 
+	from Headcount
+),
+a AS(
+	SELECT
+		convert(date,Fecha) as fecha,
+		convert(float,Paciente) as Paciente,
+		[Num Dcto],
+		[Uo Plan],
+		[Fecha crea#],
+		[Nombre Medico],
+		[Cod# Medico Tratante],
+		Prestación
+	FROM
+		CentroContacto.dbo.[Agendamiento FVL]
+	WHERE [Tipo de Cita] != 'CANCELADA'
+	AND [Texto status prest#] != 'Anulada'
+)
+select
+	gi.Fecha,
+	gi.[N citacion],
+	gi.[N documento],
+	cl.Paciente,
+	gi.[Clase transporte],
+	uo.Grupo,
+	uo.[Unidad organizativa],
+	uo.[Nombre Especialidad],
+	uo.Lider,
+	CASE
+		WHEN CONCAT(a.prestación, a.[Num Dcto]) = CONCAT(gi.prestacion, gi.[N documento]) THEN MIN(a.fecha)
+		ELSE NULL
+	END AS Reprogramado_Para,
+	cl.[Den# Nueva],
+	CASE
+		WHEN cl.[Den# Nueva] IS NULL THEN 'Pendiente Gestionar' 
+		WHEN LEFT(cl.[Den# Nueva], 2) = 'I-' OR cl.[Den# Nueva] = 'Atn Sin Episodi' THEN 'Inasistencia'
+		WHEN LEFT(cl.[Den# Nueva], 2) = 'N-' THEN 'No Atención'
+		ELSE 'Cita movida' END AS Estado
+from gi
+left join cl on gi.[N citacion] = cl.[ID citación]
+left join uo on gi.Un#org#tratamiento = uo.[Unidad organizativa]
+left join hc on gi.Agente = hc.[Correo institucional] 
+LEFT JOIN a ON gi.[N documento] = a.[Num Dcto] and a.fecha > gi.fecha
+WHERE Grupo = 'Consulta externa'
+group by
+	gi.Fecha,
+	gi.[N citacion],
+	a.prestación,
+	a.[Num Dcto],
+	gi.[N documento],
+	gi.prestacion,
+	gi.Especialidad,
+	cl.Paciente,
+	gi.[Clase transporte],
+	uo.Grupo,
+	uo.[Unidad organizativa],
+	uo.[Nombre Especialidad],
+	uo.Lider,
+	cl.[Den# Nueva]
