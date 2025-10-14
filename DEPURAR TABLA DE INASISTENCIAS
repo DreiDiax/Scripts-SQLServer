@@ -1,0 +1,31 @@
+---- >>> ELIMINAR DUPPLICADOS DE ID CITACION <<< -----
+
+-- Primero verifica qué registros se van a eliminar
+SELECT [N citacion], COUNT(*) as Cantidad
+FROM [dbo].[GestionInasistencias]
+WHERE Fecha >= '2025-10-01' AND Fecha < '2025-11-01'
+GROUP BY [N citacion]
+HAVING COUNT(*) > 1
+GO
+
+-- Eliminar duplicados, manteniendo un registro por cada [N citacion]
+WITH CTE_Duplicados AS (
+    SELECT *,
+        ROW_NUMBER() OVER (
+            PARTITION BY [N citacion] 
+            ORDER BY Fecha DESC, Hora DESC  -- Mantiene el registro más reciente
+        ) as RN
+    FROM [dbo].[GestionInasistencias]
+    WHERE Fecha >= '2025-10-01' AND Fecha < '2025-11-01'
+)
+DELETE FROM CTE_Duplicados 
+WHERE RN > 1
+GO
+
+-- QUITAR LO QUE NO SEA I-PAC NO PRESENT DE CONSULTA EXTERNA
+DELETE g
+FROM GestionInasistencias g
+LEFT JOIN [Unidades Organizativas] u ON g.Un#org#tratamiento = u.[Unidad organizativa] 
+WHERE fecha >= '2025-01-01'
+AND u.grupo = 'Consulta Externa'
+AND g.[Clase transporte] NOT LIKE '%presen%'
