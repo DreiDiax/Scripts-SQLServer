@@ -29,3 +29,12 @@ LEFT JOIN [Unidades Organizativas] u ON g.Un#org#tratamiento = u.[Unidad organiz
 WHERE fecha >= '2025-01-01'
 AND u.grupo = 'Consulta Externa'
 AND g.[Clase transporte] NOT LIKE '%presen%'
+
+
+
+DELETE g
+FROM GestionInasistencias g
+LEFT JOIN [Unidades Organizativas] u ON g.Un#org#tratamiento = u.[Unidad organizativa] 
+WHERE fecha >= '2025-10-01'
+AND u.grupo = 'Ambulatorios'
+AND g.[Clase transporte] Not in ('Asignacion', 'CONF WHATSAPP', 'CONFIRMACION', 'I-Pac no presen')
