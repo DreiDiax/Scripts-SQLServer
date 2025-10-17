@@ -1,0 +1,81 @@
+WITH pacientes_excluir AS (
+    SELECT value AS paciente_id
+    FROM OPENJSON('[830175,780952,1592793,929833,1510904,929833,34945,541544,244097,609990,1831369,1802972,472796,15466,406556,1802972,79450,891314,185976,1487394,1319585,217256,1873023,588320,87084,1852003,393591,106691,856301,560115,1788209,1908883,1708711,1406679,570111,616985,1899319,1185057,43239,275427]')
+),
+bp AS(	
+	SELECT 
+		CONVERT(date,fecha) as fecha,
+		Hora,
+		[ID citacion],
+		Paciente,
+		[Texto causal modificacion],
+		[Unidad organizativa],
+		Aseguradora,
+		[Creado por],
+		([Nombre medico] + ' ' + [Apellido medico]) as Medico,
+		[Sala cita],
+		[Indicador anulacion],
+		[Causal modificacion],
+		[Tipo de cita],
+		CONVERT(date, [Fecha de anulacion]) as fecha_anulacion,
+		ROW_NUMBER() OVER (
+			PARTITION BY CONVERT(date, fecha), Hora, Paciente, [ID citacion], [Unidad organizativa]
+			ORDER BY Paciente, [Unidad organizativa], fecha, [Indicador anulacion], [Causal modificacion]
+		) AS rn
+	FROM
+		CentroContacto.dbo.Base_Pura_Sap
+	WHERE fecha >= '2025-01-01'
+		AND Paciente NOT IN (SELECT paciente_id FROM pacientes_excluir)
+),
+a AS (	
+SELECT
+		[Código de Aseguradora Plan],
+		[Nombre / R#Social_(Reporte MCSI)] AS Aseguradora,
+		[Tipo Aseguradora]
+FROM
+		CentroContacto.dbo.[Códigos Aseguradoras]
+),
+uo AS (
+	SELECT
+		[Unidad organizativa],
+		Grupo,
+		Lider,
+		Sede,
+		[Nombre Especialidad]
+	FROM
+		CentroContacto.dbo.[Unidades Organizativas]
+)
+SELECT
+	bp.fecha,
+	bp.[ID citacion],
+	bp.[Texto causal modificacion],
+	bp.[Unidad organizativa],
+	uo.[Nombre Especialidad],
+	uo.Grupo,
+	uo.Sede,
+	a.Aseguradora,
+	a.[Tipo Aseguradora],
+	bp.[Creado por],
+	bp.Medico,
+	bp.[Sala cita],
+	bp.[Tipo de cita],
+	bp.fecha_anulacion,
+	total = 1,
+	CASE
+		WHEN bp.fecha = bp.fecha_anulacion THEN 1
+		ELSE 0
+	END AS cancelada_el_mismo_día
+FROM
+	bp
+LEFT JOIN a ON a.[Código de Aseguradora Plan] = bp.Aseguradora
+LEFT JOIN uo ON uo.[Unidad organizativa] = bp.[Unidad organizativa]
+WHERE
+	bp.rn = 1
+and [Tipo de cita] = 'CANCELADA'
+and LEFT([Texto causal modificacion],2) = 'C-'
+ORDER BY
+	bp.Paciente,
+	bp.[Unidad organizativa],
+	bp.fecha,
+	bp.[Indicador anulacion],
+	bp.[Causal modificacion]
