@@ -1,0 +1,80 @@
+WITH b AS (
+    SELECT
+        CAST(Fecha AS DATE) AS Fecha_Date,
+        [Unidad organizativa],
+        [Texto causal modificacion],
+        [Creado por],
+        CAST([fecha creacion] AS DATE) AS Fecha_Creacion,
+        [Prestacion],
+        COUNT(DISTINCT([ID citacion])) AS Cantidad
+    FROM
+        [dbo].[Base_Pura_Sap]
+    WHERE
+        [Fecha] BETWEEN '2025-04-01 00:00' AND '2025-06-30 23:59'
+    GROUP BY
+        [Fecha],
+        [Unidad organizativa],
+        [Texto causal modificacion],
+        [Creado por],
+        [fecha creacion],
+        [Prestacion]
+),
+c AS (
+    SELECT
+        [Unidad organizativa],
+        servicio,
+        Detalle,
+        cola
+    FROM
+        CentroContacto.dbo.Base_Costos_Presupuestos
+),
+h AS (
+    SELECT 
+        [Usuario de Windows/Sap],
+        CAST([fecha de Egreso] AS DATE) as Fecha_Egreso
+    FROM 
+        CentroContacto.dbo.Headcount
+)
+SELECT 
+    FORMAT(CAST(b.Fecha_Date AS DATE), 'dd/MM/yyyy') AS Fecha_Date,
+    b.[Unidad organizativa],
+    b.[Texto causal modificacion],
+    b.[Creado por],
+    b.Prestacion,
+    b.Cantidad,
+    c.Detalle,
+    CASE
+        WHEN
+            b.[Unidad organizativa] = 'TCTRASPL' AND (b.Prestacion = 'SINNIVELES' OR b.Prestacion = 'CONNIVELES')
+        THEN
+            'LABORATORIO'
+        ELSE 
+            c.servicio
+    END AS servicio,
+    CASE
+        WHEN
+            b.[Texto causal modificacion] = 'CONFIRMACIÓN'
+        THEN 
+            b.Cantidad
+        ELSE 
+            0
+    END AS Confirmación_llamadas,
+    CASE
+        WHEN
+            b.[Texto causal modificacion] = 'CONF WHATSAPP'
+        THEN 
+            b.Cantidad
+        ELSE 
+            0
+    END AS Confirmación_Whatsapp,
+    'Centro de contacto' AS Area,
+    c.cola
+FROM 
+    b
+LEFT JOIN 
+    c ON c.[Unidad organizativa] = b.[Unidad organizativa]
+LEFT JOIN 
+    h ON h.[Usuario de Windows/Sap] = b.[Creado por]
+WHERE
+    h.[Usuario de Windows/Sap] IS NOT NULL
+and (h.Fecha_Egreso > b.Fecha_Creacion OR h.fecha_Egreso IS NULL)
