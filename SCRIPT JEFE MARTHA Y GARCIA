@@ -26,9 +26,8 @@ SELECT
     c.[Wrapup 2 (depurado)] as [Tipificacion en confirmacion]
 FROM Base_Pura_Sap b
 LEFT JOIN [Unidades Organizativas] u ON b.[Unidad organizativa] = u.[Unidad organizativa]
-LEFT JOIN [Loguin] l ON b.[Creado por] = l.[usuario]
 LEFT JOIN Headcount h ON b.[Creado por] = h.[Usuario de Windows/Sap]
 LEFT JOIN [Códigos Aseguradoras] ca ON b.Aseguradora = ca.[Código de Aseguradora Plan] 
 LEFT JOIN [Confirmacion_ene-ago_ivr_wp_tel] c ON b.[ID citacion] = c.[N citacion]
-WHERE b.Fecha BETWEEN '2024-01-01' AND '2025-04-30'
-AND b.[Unidad organizativa] IN ('TAANESTE', 'TCANESTE', 'TEANESTE', 'TELEESTE', 'TLIMOANT', 'TTQCANES')
+WHERE b.Fecha BETWEEN '2025-10-01' AND '2025-10-30'
+and u.[Nombre Especialidad] = 'Siquiatría'
