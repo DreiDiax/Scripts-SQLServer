@@ -1,0 +1,78 @@
+    
+WITH a AS(	
+	SELECT 
+	    CONVERT(date, a.fecha) as fecha,
+	    CONVERT(date, a.[Fecha crea#]) as fecha_creacion,
+	    a.[ID citación],
+	    a.Paciente,
+	    a.[Uo Plan],
+	    a.[Creado por],
+	    a.[Indicador Anulación],
+	    a.[Causal modificación],
+	    a.[Status de prestación]
+	FROM(
+		SELECT
+			*,
+		    ROW_NUMBER() OVER (
+		        PARTITION BY FORMAT(a.[Fecha crea#],'dd/MM/yyyy'), a.Paciente, a.[ID citación], a.[Uo Plan]
+		        ORDER BY a.Paciente, a.[Uo Plan], a.fecha, a.[Indicador Anulación], a.[Causal modificación], a.[Status de prestación]
+		    ) AS rn
+		FROM
+	    	CentroContacto.dbo.[Agendamiento FVL] a
+		WHERE a.fecha = '2025-11-08'
+	) a
+	WHERE a.rn=1
+),
+bps AS (
+    SELECT
+        CONVERT(date, fecha) as fecha,
+        Hora,
+        Episodio,
+        [ID citacion],
+        bps.Paciente,  -- Especificar la tabla de origen
+        [Fecha nacimiento],
+        [Fecha creacion],
+        [Texto causal modificacion],
+        [Unidad organizativa],
+        Aseguradora,
+        [Creado por],
+        CONVERT(date, [Fecha creacion]) as fecha_creacion,
+        CONVERT(date, [Fecha deseada]) as fecha_deseada,
+        [Nombre medico],
+        [Apellido medico],
+        [Sala cita],
+        [Indicador anulacion],
+        [Causal modificacion],
+        Prestacion,
+        Descripcion,
+        [Texto status prestacion],
+        [Status de prestacion],
+        [Tipo de cita]
+   	FROM (
+   		SELECT
+   			*,
+   			ROW_NUMBER() OVER (
+            PARTITION BY CONVERT(date, fecha), Hora, bps.Paciente, [ID citacion], [Unidad organizativa]
+            ORDER BY bps.Paciente, [Unidad organizativa], fecha, [Indicador anulacion], [Causal modificacion], [Status de prestacion]
+        ) AS rn
+        FROM
+        	CentroContacto.dbo.Base_Pura_Sap bps
+        WHERE Fecha = '2025-11-08'
+    ) bps
+    LEFT JOIN CentroContacto.dbo.Pacientes_dañados pd 
+    ON bps.Paciente = pd.Paciente
+    WHERE pd.Paciente IS NULL	
+    AND bps.rn=1
+)
+SELECT
+    COALESCE(a.fecha, bps.fecha) as fecha,
+    COALESCE(a.[Creado por], bps.[Creado por]) as [Creado por],
+    COUNT(DISTINCT a.[ID citación]) AS Citas_Agendadas,
+    COUNT(DISTINCT CASE WHEN bps.[Status de prestacion] = 5 THEN bps.[ID citacion] END) AS Citas_Atendidas,
+    COUNT(DISTINCT CASE WHEN bps.[Status de prestacion] = 1 THEN bps.[ID citacion] END) AS Citas_Inasistidas,
+    COUNT(DISTINCT CASE WHEN bps.[Status de prestacion] IS NULL THEN bps.[ID citacion] END) AS Citas_Canceladas
+FROM a
+FULL OUTER JOIN bps ON a.fecha = bps.fecha AND a.[Creado por] = bps.[Creado por]
+GROUP BY 
+    COALESCE(a.fecha, bps.fecha),
+    COALESCE(a.[Creado por], bps.[Creado por])
