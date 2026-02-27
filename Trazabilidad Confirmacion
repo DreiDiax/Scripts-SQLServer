@@ -1,4 +1,3 @@
-
 SELECT 
     YEAR([Fecha]) AS Año,
     MONTH([Fecha]) AS MesNumero,
@@ -47,7 +46,16 @@ SELECT
                                    'TCORTOPT', 'TCOTORRI', 'TCPSICOL', 'TANEUPED', 
                                    'TCSICONC', 'TCSIQUIA', 'TCREUMPE'
                                )
-                        THEN [N citacion] END) AS [Confirmados Atendidos Críticos Únicos]
+                        THEN [N citacion] END) AS [Confirmados Atendidos Críticos Únicos],
+	COUNT(DISTINCT CASE WHEN [proceso] is not null
+                            AND [Un#org#tratamiento] IN (
+                                'TCALERGO', 'TCENDOPE', 'TCFISIAT', 'TCGASPED', 
+                                'TCGASTRO', 'TCMEDFAM', 'TCMINTER', 'TCNEUROP', 
+                                'TCNUTRIC', 'TCODOPED', 'TCOFTALM', 'TCOPTOME', 
+                                'TCORTOPT', 'TCOTORRI', 'TCPSICOL', 'TANEUPED', 
+                                'TCSICONC', 'TCSIQUIA', 'TCREUMPE'
+                            )
+                    THEN [N citacion] END) AS [Total Críticos Únicos]
 FROM 
     [dbo].[Confirmacion_ene-ago_ivr_wp_tel]
 WHERE
