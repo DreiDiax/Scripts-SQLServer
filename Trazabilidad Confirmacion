@@ -15,8 +15,8 @@ SELECT
         WHEN 11 THEN 'Noviembre'
         WHEN 12 THEN 'Diciembre'
     END AS Mes,
-    COUNT(DISTINCT [N citacion]) AS [Total Pacientes Únicos],
-    COUNT(DISTINCT CASE WHEN [Efectividad] = 'ubicado' THEN [N citacion] END) AS [Pacientes Ubicados Únicos],
+    COUNT(DISTINCT [N citacion]) AS [Porcentaje Contactabilidad - Denominador],
+    COUNT(DISTINCT CASE WHEN [Efectividad] = 'ubicado' THEN [N citacion] END) AS [Porcentaje Contactabilidad - Numerador],
     COUNT(DISTINCT CASE WHEN [Confirmado] = 'confirmado' THEN [N citacion] END) AS [Pacientes Confirmados Únicos],
     COUNT(DISTINCT CASE WHEN [Confirmado] = 'confirmado' AND [Atendidas] = 'ATENDIDA' 
                         THEN [N citacion] END) AS [Confirmados y Atendidos Únicos],
@@ -28,7 +28,7 @@ SELECT
                                    'TCORTOPT', 'TCOTORRI', 'TCPSICOL', 'TANEUPED', 
                                    'TCSICONC', 'TCSIQUIA', 'TCREUMPE'
                                )
-                        THEN [N citacion] END) AS [Ubicados Críticos Únicos],
+                        THEN [N citacion] END) AS [Pacientes ubicados criticos - Numerador],
     COUNT(DISTINCT CASE WHEN [Confirmado] = 'confirmado' AND 
                                [Un#org#tratamiento] IN (
                                    'TCALERGO', 'TCENDOPE', 'TCFISIAT', 'TCGASPED', 
@@ -55,12 +55,12 @@ SELECT
                                 'TCORTOPT', 'TCOTORRI', 'TCPSICOL', 'TANEUPED', 
                                 'TCSICONC', 'TCSIQUIA', 'TCREUMPE'
                             )
-                    THEN [N citacion] END) AS [Total Críticos Únicos]
+                    THEN [N citacion] END) AS [Pacientes ubicados criticos - Denominador]
 FROM 
     [dbo].[Confirmacion_ene-ago_ivr_wp_tel]
 WHERE
     [Fecha] IS NOT NULL
-    and fecha >= '2025-01-01'
+    and fecha >= '2026-07-01'
 GROUP BY 
     YEAR([Fecha]),
     MONTH([Fecha]),
