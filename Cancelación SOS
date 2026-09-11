@@ -1,0 +1,149 @@
+with base_cancelacion_sos as(
+SELECT
+	CONVERT(VARCHAR, Fecha, 103) as Fecha,
+	CONVERT(VARCHAR, Hora, 108) as Hora,
+	Episodio,
+	[Clase de episodio] as Clase_Episodio,
+	Paciente,
+	null as [Paciente conteo],
+	[Apellido 1] as Apellido1,
+	[Apellido 2] as Apellido2,
+	[Primer Nombre] as Nombre1,
+	[Segundo Nombre] as Nombre2,
+	[ID citación] as ID_citacion,
+	[Nº documento] as Num_Dcto,
+	[Fecha de nacimiento] as Fecha_naci,
+	[Clase transporte] as Causal_modificacion,
+	[Cl#transp#(txt#)] as [Texto:_causal_modificacion],
+	[Motivo de modificación] as Motivo_de_modificacion,
+	Un#org#planificada as Uo_Plan,
+	Aseguradora,
+	[Nom Aseg#] as Nom_Aseg,
+	Anulado as Indicador_Anulacion,
+	[Anulado por] as Nombre_responsable_anulacion,
+	[Anulado el] as Fecha_de_anulacion,
+	[Motivo de anulación] as Motivo_de_anulacion_de_una_citacion,
+	Mes,	
+	[Creado el] as Fecha_crea,
+	[Creado por] as Creado_por,
+	[Modificado el] as Fecha_mod,
+	Modif#por as Modif_por,
+	[Nombre completo] as Nombre_completo,
+	[Pers#que trata últ#notif#admis#] as Cod_Medico_Tratante,
+	[Nom#pila/2º apellido] as Nombre_medico,
+	[Apellido/R#Social] as Apellido_medico,
+	[Sala de la última citación] as Sala_cita,
+	Tp#planificación as Tp_plan,
+	REPLACE(Comentario,',','') as Comentario,
+	[Dígito control] as Indicador,
+	null as Num_Cita,
+	[Tipo documento] as [Tipo de Cita],
+	Teléfono as Telefono,
+	[Calle/Número] as Direccion,
+	[Dirección de e-mail] as Email,
+	[Fecha deseada] as Fecha_deseada,
+	[Nº actual prestación] as Presactual,
+	Prestación as Prestacion,
+	REPLACE(Descripción,',','') as Descripcion,
+	[Status de prestación] as Status_de_prestacion,
+	[Texto status prest#] as Texto_status_prest,
+	[Edad paciente] as Edad_paciente,
+	[Tipo de Cita] as T_cita,
+	Prestación,
+	ROW_NUMBER() OVER (
+		PARTITION BY CONVERT(VARCHAR, Fecha, 103), CONVERT(VARCHAR, Hora, 108), Paciente, [ID citación], Un#org#planificada
+		ORDER BY Paciente, Un#org#planificada, CONVERT(VARCHAR, Fecha, 103), Anulado, [Clase transporte], [Status de prestación]
+	) AS rn
+FROM
+	CentroContacto.dbo.[Cancelación Aseguradoras]
+),
+u AS (
+	SELECT
+		[Unidad organizativa],
+		Grupo,
+		Lider,
+		Sede,
+		[Cola Genesys],
+		[Nombre Especialidad],
+		[Especialidad Agrupada]
+	FROM
+		CentroContacto.dbo.[Unidades Organizativas]
+	WHERE Grupo IN ('Ambulatorios', 'Consulta Externa')
+	AND [Nombre Especialidad] <> '-'
+),
+b as (
+	select * from base_cancelacion_sos bc
+	inner join u ON u.[Unidad organizativa] = bc.Uo_Plan
+	where rn = 1
+	And bc.T_cita <> 'CANCELADA'
+	AND bc.Episodio = ''
+	AND bc.prestación NOT IN ('CNOPAGOPOP','CONTNOPAGO')
+	AND bc.Comentario NOT LIKE '%PROTOCOLO%'
+	AND bc.Comentario NOT LIKE '%INR 2%'
+	AND bc.Comentario NOT LIKE '%Tarifa%'
+	AND bc.Aseguradora IN (
+	    '1000004562',
+	    '1000004583',
+	    '1000000268',
+	    '1000000269',
+	    '1000003040',
+	    '1000001226',
+	    '1000003582',
+	    '1000003039',
+	    '1000003043',
+	    '1000003036',
+	    '1000003042',
+	    '1000003786'
+	)
+	AND u.[Nombre Especialidad]  NOT IN ('Fonoaudiología')
+)
+SELECT
+    b.Fecha,
+    b.Hora,
+    b.Episodio,
+    b.Clase_Episodio,
+    b.Paciente,
+    b.[Paciente conteo],
+    b.Apellido1,
+    b.Apellido2,
+    b.Nombre1,
+    b.Nombre2,
+    b.ID_citacion,
+    b.Num_Dcto,
+    b.Fecha_naci,
+    b.Causal_modificacion,
+    b.[Texto:_causal_modificacion],
+    b.Motivo_de_modificacion,
+    b.Uo_Plan,
+    b.Aseguradora,
+    b.Nom_Aseg,
+    b.Indicador_Anulacion,
+    b.Nombre_responsable_anulacion,
+    b.Fecha_de_anulacion,
+    b.Motivo_de_anulacion_de_una_citacion,
+    b.Mes,
+    b.Fecha_crea,
+    b.Creado_por,
+    b.Fecha_mod,
+    b.Modif_por,
+    b.Nombre_completo,
+    b.Cod_Medico_Tratante,
+    b.Nombre_medico,
+    b.Apellido_medico,
+    b.Sala_cita,
+    b.Tp_plan,
+    b.Comentario,
+    b.Indicador,
+    b.Num_Cita,
+    b.[Tipo de Cita],
+    b.Telefono,
+    b.Direccion,
+    b.Email,
+    b.Fecha_deseada,
+    b.Presactual,
+    b.Prestacion,
+    b.Descripcion,
+    b.Status_de_prestacion,
+    b.Texto_status_prest,
+    b.Edad_paciente
+from b
