@@ -81,6 +81,7 @@ b as (
 	AND bc.Comentario NOT LIKE '%PROTOCOLO%'
 	AND bc.Comentario NOT LIKE '%INR 2%'
 	AND bc.Comentario NOT LIKE '%Tarifa%'
+	AND bc.Comentario NOT IN ('AVAL_ADMINISTRATIVO_JURIDICA', 'AVAL_ADMINISTRATIVO_GESTOR')
 	AND bc.Aseguradora IN (
 	    '1000004562',
 	    '1000004583',
