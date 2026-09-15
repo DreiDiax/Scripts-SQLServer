@@ -1,23 +1,28 @@
 WITH b AS (
-    SELECT
-        CAST(Fecha AS DATE) AS Fecha_Date,
-        [Unidad organizativa],
-        [Texto causal modificacion],
-        [Creado por],
-        CAST([fecha creacion] AS DATE) AS Fecha_Creacion,
-        [Prestacion],
-        COUNT(DISTINCT([ID citacion])) AS Cantidad
-    FROM
-        [dbo].[Base_Pura_Sap]
-    WHERE
-        [Fecha] BETWEEN '2025-04-01 00:00' AND '2025-06-30 23:59'
-    GROUP BY
-        [Fecha],
-        [Unidad organizativa],
-        [Texto causal modificacion],
-        [Creado por],
-        [fecha creacion],
-        [Prestacion]
+	SELECT 
+		CONVERT(date,fecha) as Fecha_Date,
+		Hora,
+		[ID citacion],
+		Paciente,
+		[Texto causal modificacion],
+		[Unidad organizativa],
+		Aseguradora,
+		[Creado por],
+		([Nombre medico] + ' ' +	[Apellido medico]) as Medico,
+		[Sala cita],
+		[Fecha creacion] as Fecha_Creacion,
+		[Indicador anulacion],
+		Prestacion,
+		[Causal modificacion],
+		ROW_NUMBER() OVER (
+			PARTITION BY CONVERT(date,fecha), Hora, Paciente, [ID citacion], [Unidad organizativa]
+			ORDER BY Paciente, [Unidad organizativa], fecha, [Indicador anulacion], [Causal modificacion]
+		) AS rn
+	FROM
+		CentroContacto.dbo.Base_Pura_Sap
+		where fecha >= '2026-01-01'
+		and [Status de prestacion] <> 6
+		and [Indicador anulacion] <> 'X'
 ),
 c AS (
     SELECT
@@ -36,12 +41,12 @@ h AS (
         CentroContacto.dbo.Headcount
 )
 SELECT 
-    FORMAT(CAST(b.Fecha_Date AS DATE), 'dd/MM/yyyy') AS Fecha_Date,
+    b.Fecha_Date,
     b.[Unidad organizativa],
     b.[Texto causal modificacion],
     b.[Creado por],
     b.Prestacion,
-    b.Cantidad,
+    COUNT(b.[ID citacion]) as cantidad,
     c.Detalle,
     CASE
         WHEN
@@ -55,7 +60,7 @@ SELECT
         WHEN
             b.[Texto causal modificacion] = 'CONFIRMACIÓN'
         THEN 
-            b.Cantidad
+            COUNT(b.[ID citacion])
         ELSE 
             0
     END AS Confirmación_llamadas,
@@ -63,7 +68,7 @@ SELECT
         WHEN
             b.[Texto causal modificacion] = 'CONF WHATSAPP'
         THEN 
-            b.Cantidad
+            COUNT(b.[ID citacion])
         ELSE 
             0
     END AS Confirmación_Whatsapp,
@@ -77,4 +82,14 @@ LEFT JOIN
     h ON h.[Usuario de Windows/Sap] = b.[Creado por]
 WHERE
     h.[Usuario de Windows/Sap] IS NOT NULL
+and rn=1
 and (h.Fecha_Egreso > b.Fecha_Creacion OR h.fecha_Egreso IS NULL)
+group BY 
+    b.Fecha_Date,
+    b.[Unidad organizativa],
+    b.[Texto causal modificacion],
+    b.[Creado por],
+    b.Prestacion,
+    c.Detalle,
+    c.servicio,
+    c.cola
