@@ -1,95 +1,385 @@
-WITH b AS (
-	SELECT 
-		CONVERT(date,fecha) as Fecha_Date,
+WITH bp AS(	
+	SELECT
+		CONVERT(DATE, fecha) as fecha,
 		Hora,
 		[ID citacion],
 		Paciente,
+		[Fecha creacion],
 		[Texto causal modificacion],
 		[Unidad organizativa],
 		Aseguradora,
 		[Creado por],
-		([Nombre medico] + ' ' +	[Apellido medico]) as Medico,
+		CONVERT(date, [Fecha creacion]) as fecha_creacion,
+		([Nombre medico] + ' ' +	[Apellido medico]) AS Medico,
 		[Sala cita],
-		[Fecha creacion] as Fecha_Creacion,
-		[Indicador anulacion],
 		Prestacion,
+		[Indicador anulacion],
+		[Status de prestacion],
 		[Causal modificacion],
+		[Tipo de cita],
 		ROW_NUMBER() OVER (
-			PARTITION BY CONVERT(date,fecha), Hora, Paciente, [ID citacion], [Unidad organizativa]
+			PARTITION BY FORMAT(fecha, 'dd/MM/yyyy'), Hora, Paciente, [ID citacion], [Unidad organizativa]
 			ORDER BY Paciente, [Unidad organizativa], fecha, [Indicador anulacion], [Causal modificacion]
 		) AS rn
 	FROM
 		CentroContacto.dbo.Base_Pura_Sap
-		where fecha >= '2026-01-01'
-		and [Status de prestacion] <> 6
-		and [Indicador anulacion] <> 'X'
+	WHERE Fecha >= '2026-01-01'
+    AND Paciente NOT IN (
+        SELECT paciente
+        FROM CentroContacto.dbo.Pacientes_dañados pd
+    )
 ),
-c AS (
+hc AS(
+	SELECT
+		[Usuario de Windows/Sap],
+		Nombre,
+		[Líder Asignado],
+		[Fecha Ingreso Agente],
+		Estado,
+		CONVERT(date, [Fecha de Egreso]) AS fecha_egreso,
+		[Motivo Egreso]
+	FROM
+		CentroContacto.dbo.Headcount
+),
+uo AS(
+	SELECT
+		[Unidad organizativa],
+		Grupo,
+		Sede,
+		lider,
+		[Nombre Especialidad],
+		[Cola Genesys]
+	FROM
+		CentroContacto.dbo.[Unidades Organizativas]
+	WHERE Grupo IN ('Consulta externa', 'Ambulatorios', 'Gestión humana', 'No aplica')
+),
+a AS(
+	SELECT
+		[Código de Aseguradora Plan],
+		[Nombre / R#Social_(Reporte MCSI)],
+		[Tipo Aseguradora]
+	FROM
+		CentroContacto.dbo.[Códigos Aseguradoras]
+),
+r AS (
+	SELECT
+		bp.fecha,
+		bp.[Fecha creacion],
+		bp.[Creado por],
+		bp.[ID citacion],
+		bp.Prestacion,
+		CASE 
+			WHEN bp.[Texto causal modificacion]= '' THEN 'SIN CLASE DE TRANSPORTE'
+			ELSE bp.[Texto causal modificacion]
+		END AS [Texto causal modificacion],
+		CASE
+			WHEN hc.[Usuario de Windows/Sap] = bp.[Creado por] AND 
+	             (hc.fecha_egreso IS NULL OR hc.fecha_egreso > bp.fecha_creacion) THEN 'Centro de contacto'
+			ELSE 'Otras áreas'
+		END AS Agendado_por,
+		bp.[Unidad organizativa],
+		uo.[Nombre Especialidad],
+		uo.Grupo,
+		uo.Sede,
+		uo.[Cola Genesys],
+		a.[Nombre / R#Social_(Reporte MCSI)] as Aseguradora,
+		CASE
+			WHEN a.[Tipo Aseguradora] IS NULL THEN 'Sin Aseguradora'
+			ELSE a.[Tipo Aseguradora]
+		END as Tipo_Aseguradora,
+		CASE
+			WHEN bp.Medico IS NULL OR LTRIM(RTRIM(bp.Medico)) = '' THEN 'SIN MEDICO'
+			ELSE bp.Medico
+		END	AS Médico,
+		CASE 
+			WHEN bp.[Status de prestacion] = 6 OR bp.[Indicador anulacion]= 'X' THEN 'CANCELADA'
+			WHEN bp.[Status de prestacion] = 1 THEN 'INASISTENCIA'
+			WHEN bp.[Status de prestacion] IN (5,9,10) THEN 'ATENDIDA'
+			ELSE 'NO APLICA'
+		END AS [Tipo de cita],
+		bp.[Sala cita],
+		uo.lider
+	FROM bp
+	LEFT JOIN hc ON bp.[Creado por] = hc.[Usuario de Windows/Sap]
+	LEFT JOIN a ON bp.Aseguradora = a.[Código de Aseguradora Plan]
+	LEFT JOIN uo ON bp.[Unidad organizativa] = uo.[Unidad organizativa]
+	WHERE bp.rn = 1
+	AND (
+		CASE 
+			WHEN bp.[Status de prestacion] = 6 OR bp.[Indicador anulacion]= 'X' THEN 'CANCELADA'
+			WHEN bp.[Status de prestacion] = 1 THEN 'INASISTENCIA'
+			WHEN bp.[Status de prestacion] IN (5,9,10) THEN 'ATENDIDA'
+			ELSE 'NO APLICA'
+		END
+	) <> 'NO APLICA'
+	AND uo.Grupo IS NOT NULL 
+),
+catalogo AS (
     SELECT
-        [Unidad organizativa],
-        servicio,
-        Detalle,
-        cola
-    FROM
-        CentroContacto.dbo.Base_Costos_Presupuestos
+        uo.[Unidad organizativa],
+        uo.Grupo,
+        uo.Sede,
+        uo.[Nombre Especialidad]   AS NombreEsp,
+        uo.[Especialidad Agrupada] AS EspAgrupada,
+        CASE
+            WHEN uo.[Especialidad Agrupada] = 'Vacunación' THEN
+                 'VACUNACIÓN' + CASE uo.Sede
+                     WHEN 'Alfaguara'  THEN ' ALFAGUARA'
+                     WHEN 'Estación'   THEN ' ESTACION'
+                     WHEN 'Limonar'    THEN ' LIMONAR'
+                     WHEN 'Tequendama' THEN ' TEQUENDAMA'
+                     ELSE '' END
+            WHEN uo.[Especialidad Agrupada] = 'Contacto Canguro'
+                 THEN 'CONTACTO CANGURO'
+            WHEN uo.Grupo = 'Consulta Externa'
+                 AND uo.[Especialidad Agrupada] = 'Cateterismo'
+                 THEN 'ACCESOS VASCULARES'
+                      + CASE WHEN uo.Sede = 'Limonar' THEN ' LIMONAR' ELSE '' END
+            WHEN uo.Grupo = 'Consulta Externa'
+                 AND uo.[Especialidad Agrupada] = 'Trasplantes'
+                 AND uo.Sede IN ('Alfaguara','Estación','Limonar','Tequendama')
+                 THEN 'LABORATORIO' + CASE uo.Sede
+                     WHEN 'Alfaguara'  THEN ' ALFAGUARA'
+                     WHEN 'Estación'   THEN ' ESTACIÓN'
+                     WHEN 'Limonar'    THEN ' LIMONAR'
+                     WHEN 'Tequendama' THEN ' TEQUENDAMA'
+                     ELSE '' END
+            WHEN uo.Grupo = 'Ambulatorios'
+                 AND uo.[Nombre Especialidad] = 'Rehabilitación Cardiaca'
+                 THEN 'REHABILITACIÓN CARDIACA'
+            WHEN uo.Grupo = 'Ambulatorios'
+                 AND uo.[Especialidad Agrupada] IN ('Cardiología No Invasiva','Electrofisiología')
+                 THEN CASE
+                          /* en Alfaguara el nombre no incluye ADULTOS/PEDIATRICA */
+                          WHEN uo.Sede = 'Alfaguara' THEN 'CARDIOLOGIA ALFAGUARA'
+                          WHEN uo.Sede = 'Limonar' AND uo.[Unidad organizativa] = 'TLIMOECO'
+                               THEN 'CARDIOLOGIA PEDIATRICA LIMONAR'
+                          ELSE 'CARDIOLOGIA '
+                               + CASE WHEN uo.[Nombre Especialidad] LIKE '%Pediátric%'
+                                      THEN 'PEDIATRICA' ELSE 'ADULTOS' END
+                               + CASE WHEN uo.Sede <> 'Principal'
+                                      THEN CASE uo.Sede
+                                              WHEN 'Alfaguara'  THEN ' ALFAGUARA'
+                                              WHEN 'Estación'   THEN ' ESTACIÓN'
+                                              WHEN 'Limonar'    THEN ' LIMONAR'
+                                              WHEN 'Tequendama' THEN ' TEQUENDAMA'
+                                              ELSE '' END
+                                      ELSE '' END
+                      END
+            WHEN uo.Grupo = 'Ambulatorios' AND uo.[Especialidad Agrupada] = 'Imágenes Diagnósticas'
+                 THEN 'IMÁGENES' + CASE WHEN uo.Sede <> 'Principal' THEN uo.sufijo2 ELSE '' END
+            WHEN uo.Grupo = 'Ambulatorios' AND uo.[Especialidad Agrupada] = 'Endoscopia'
+                 THEN 'ENDOSCOPIA' + CASE WHEN uo.Sede <> 'Principal' THEN uo.sufijo2 ELSE '' END
+            WHEN uo.Grupo = 'Ambulatorios'
+                 AND uo.[Especialidad Agrupada] IN ('Rehabilitación Fisica','Piso Pelvico')
+                 THEN 'REHABILITACIÓN FISICA' + CASE WHEN uo.Sede <> 'Principal' THEN uo.sufijo2 ELSE '' END
+            WHEN uo.Grupo = 'Ambulatorios' AND uo.[Especialidad Agrupada] = 'Rehabilitación Pulmonar'
+                 THEN 'REHABILITACIÓN PULMONAR' + CASE WHEN uo.Sede <> 'Principal' THEN uo.sufijo2 ELSE '' END
+            /* ---- Procedimientos: aplican a cualquier grupo ---- */
+            WHEN uo.[Nombre Especialidad] = 'Pet'                 THEN 'PET'
+            WHEN uo.[Especialidad Agrupada] = 'Radioterapia'      THEN 'RADIOTERAPIA'
+            WHEN uo.[Especialidad Agrupada] = 'Medicina Nuclear'  THEN 'MEDICINA NUCLEAR'
+            /* ---- Consulta externa por sede (regla original) ---- */
+            WHEN uo.Grupo = 'Consulta Externa'
+                 THEN 'CONSULTA EXTERNA' + uo.sufijo2
+            ELSE 'CONSULTA EXTERNA'
+        END AS ServicioRegla,
+        NULLIF(REPLACE(uo.[Cola Genesys], '  ', ' - '), '') AS ColaRegla
+    FROM (
+        SELECT *,
+               CASE Sede
+                   WHEN 'Alfaguara'  THEN ' ALFAGUARA'
+                   WHEN 'Estación'   THEN ' ESTACIÓN'
+                   WHEN 'Limonar'    THEN ' LIMONAR'
+                   WHEN 'Tequendama' THEN ' TEQUENDAMA'
+                   ELSE ''
+               END AS sufijo2
+        FROM dbo.[Unidades Organizativas]
+    ) AS uo
 ),
-h AS (
-    SELECT 
-        [Usuario de Windows/Sap],
-        CAST([fecha de Egreso] AS DATE) as Fecha_Egreso
-    FROM 
-        CentroContacto.dbo.Headcount
-)
-SELECT 
-    b.Fecha_Date,
-    b.[Unidad organizativa],
-    b.[Texto causal modificacion],
-    b.[Creado por],
-    b.Prestacion,
-    COUNT(b.[ID citacion]) as cantidad,
-    c.Detalle,
-    CASE
+detalle AS (
+    SELECT
+        d.*,
+        CASE
+            WHEN d.Sede = 'Limonar' AND d.[Unidad organizativa] = 'TLIMOECO'
+                                                                THEN 'ASIGNACIÓN DE CITAS CONSULTA EXTERNA'
+            WHEN ServicioRegla LIKE 'CARDIOLOGIA%'             THEN 'ASIGNACIÓN DE CITAS CARDIOLOGIA NI'
+            WHEN ServicioRegla LIKE 'IMÁGENES%'                THEN 'ASIGNACIÓN DE CITAS IMÁGENES'
+            WHEN ServicioRegla LIKE 'ENDOSCOPIA%'              THEN 'ASIGNACIÓN DE CITAS ENDOSCOPIA'
+            WHEN ServicioRegla LIKE 'REHABILITACIÓN FISICA%'   THEN 'ASIGNACIÓN DE CITAS REH FISICA / CARDIACA'
+            WHEN ServicioRegla LIKE 'REHABILITACIÓN CARDIACA%' THEN 'ASIGNACIÓN DE CITAS REH FISICA / CARDIACA'
+            WHEN ServicioRegla LIKE 'REHABILITACIÓN PULMONAR%' THEN 'ASIGNACIÓN DE CITAS REH PULMONAR'
+            WHEN ServicioRegla IN ('MEDICINA NUCLEAR','PET','RADIOTERAPIA')
+                                                                THEN 'ASIGNACIÓN DE CITAS MEDICINA NUCLEAR / PET / RADIOTERAPIA'
+            ELSE 'ASIGNACIÓN DE CITAS CONSULTA EXTERNA'
+        END AS DetalleRegla
+    FROM catalogo AS d
+),
+Costos AS(
+	SELECT
+	    r.*,
+	    c.DetalleRegla,
+	    CASE
         WHEN
-            b.[Unidad organizativa] = 'TCTRASPL' AND (b.Prestacion = 'SINNIVELES' OR b.Prestacion = 'CONNIVELES')
+            r.[Unidad organizativa] = 'TCTRASPL' AND (r.Prestacion = 'SINNIVELES' OR r.Prestacion = 'CONNIVELES')
         THEN
             'LABORATORIO'
         ELSE 
-            c.servicio
-    END AS servicio,
-    CASE
-        WHEN
-            b.[Texto causal modificacion] = 'CONFIRMACIÓN'
-        THEN 
-            COUNT(b.[ID citacion])
-        ELSE 
-            0
-    END AS Confirmación_llamadas,
-    CASE
-        WHEN
-            b.[Texto causal modificacion] = 'CONF WHATSAPP'
-        THEN 
-            COUNT(b.[ID citacion])
-        ELSE 
-            0
-    END AS Confirmación_Whatsapp,
-    'Centro de contacto' AS Area,
-    c.cola
-FROM 
-    b
-LEFT JOIN 
-    c ON c.[Unidad organizativa] = b.[Unidad organizativa]
-LEFT JOIN 
-    h ON h.[Usuario de Windows/Sap] = b.[Creado por]
-WHERE
-    h.[Usuario de Windows/Sap] IS NOT NULL
-and rn=1
-and (h.Fecha_Egreso > b.Fecha_Creacion OR h.fecha_Egreso IS NULL)
-group BY 
-    b.Fecha_Date,
-    b.[Unidad organizativa],
-    b.[Texto causal modificacion],
-    b.[Creado por],
-    b.Prestacion,
-    c.Detalle,
-    c.servicio,
-    c.cola
+            c.ServicioRegla
+    END AS servicio
+	FROM r
+	INNER JOIN detalle AS c
+	       ON r.[Unidad organizativa] = c.[Unidad organizativa]
+),
+conf_cte AS (
+    SELECT
+        CONVERT(Date, b.fecha) as fecha_atencion,
+        CONVERT(Date,b.[Fecha creacion]) AS Fecha_Creacion,
+		DATEDIFF(DAY, CONVERT(Date,b.[Fecha creacion]), CONVERT(Date, b.fecha)) as Diferencia_Dias,
+		DATEDIFF(DAY, CONVERT(Date,b.[Fecha de anulacion]), CONVERT(Date, b.fecha)) as Diferencia_Dias_anulacion,
+		CONVERT(Date,b.[Fecha de anulacion]) as Fecha_anulacion,
+		--aqui quiero contar todos los que en el momento de crear la base era apto para confirmar
+		CASE WHEN DATEDIFF(DAY, CONVERT(Date,b.[Fecha creacion]), CONVERT(Date, b.fecha)) > 3 
+		AND DATEDIFF(DAY, CONVERT(Date,b.[Fecha de anulacion]), CONVERT(Date, b.fecha)) < 4 --no estaba anulada
+		AND c.Proceso is not null
+		AND b.[Numero documento] is not null
+		and b.Telefono is not null
+		and b.[Texto causal modificacion] not in ('No ubica Pen RE')
+		THEN 1 ELSE 0 
+		END as [Apto para confirmar],
+        b.[ID citacion],
+        b.[Numero documento],
+        b.Paciente as [Historia clinica],
+        b.Prestacion,
+        u.sede,
+        b.Nombre1 + ' ' + b.Nombre2  + ' ' + b.Apellido1 + ' ' + b.Apellido2 as [Nombre Paciente],
+        b.[Tipo de cita],  
+        ca.[Tipo Aseguradora],
+        b.[Texto causal modificacion],
+		b.Episodio,
+		CL.[Den# Anter] [Antigua clase de TTE],
+		CL.[Den# Nueva] [Nueva clase de TTE],
+        b.[Nombre aseguradora],
+        b.[Unidad organizativa],
+        u.lider,
+        u.[Cola Genesys],
+        u.[Nombre Especialidad],
+		b.[Nombre medico] + ' ' + b.[Apellido medico] as [Nombre Especialista],
+		u.Grupo,
+		b.Telefono,
+		c.[wrapup 2 (depurado)],
+		-- aqui lo que quiero es contar los no ubicados de agentes
+		CASE WHEN c.[Efectividad Llamada] = 'No ubicado' then 1 else 0 end as [No ubicados],
+		-- aqui cuento las citas anuladas antes de generar la base o novedades médicas antes de crearse la base
+		CASE WHEN (b.[Texto causal modificacion] in ('No ubica Pen RE', 'R-RE por Médico', 'R-Equi Dañado', 'R-Falta Ins.Med', 'R-Mot IntFVL') 
+			or DATEDIFF(DAY, CONVERT(Date,b.[Fecha de anulacion]), CONVERT(Date, b.fecha)) > 4 )
+		then 1 else 0 end as [Novedades Medicas y PreAnuladas],
+		-- aqui inicio la columna de contar TODOS los ubicados teniendo en cuenta SAP y Genesys
+		CASE 
+			WHEN (
+			       b.[Texto causal modificacion] IN ('C-Aut Otra Ent', 'C-CA por Médico', 'C-CA por Pcte', 'C-Can Mismo Día', 'C-Canc.Aut', 'C-Cancelado WP', 'C-E. Admin', 'C-Equi Dañado', 'C-Falta Ins.Med', 'C-Fin tratamien', 'C-Mot IntFVL', 'CONF WHATSAPP', 'CONFIRMACIÓN', 'C-Pac Fallecido','R-Falta Autor', 'R-Condi Clínica', 'R-RE PrevCOVID19', 'R-RE x Adelanto', 'R-Rea por Inas', 'R-RP Falta Exam', 'R-RP Mot Pers') 
+				or c.[wrapup 2 (depurado)] in ('Cancelado', 'Confirmado', 'Otras Gestiones', 'Reasignada', 'Reasignado', 'Resignado', 'Ubicado') 
+				or cl.[Den# Anter] IN ('C-Aut Otra Ent', 'C-CA por Médico', 'C-CA por Pcte', 'C-Can Mismo Día', 'C-Canc.Aut', 'C-Cancelado WP', 'C-E. Admin', 'C-Equi Dañado', 'C-Falta Ins.Med', 'C-Fin tratamien', 'C-Mot IntFVL', 'CONF WHATSAPP', 'CONFIRMACIÓN', 'C-Pac Fallecido','R-Falta Autor', 'R-Condi Clínica', 'R-RE PrevCOVID19', 'R-RE x Adelanto', 'R-Rea por Inas', 'R-RP Falta Exam', 'R-RP Mot Pers')
+				or cl.[Den# Nueva] IN ('C-Aut Otra Ent', 'C-CA por Médico', 'C-CA por Pcte', 'C-Can Mismo Día', 'C-Canc.Aut', 'C-Cancelado WP', 'C-E. Admin', 'C-Equi Dañado', 'C-Falta Ins.Med', 'C-Fin tratamien', 'C-Mot IntFVL', 'CONF WHATSAPP', 'CONFIRMACIÓN', 'C-Pac Fallecido','R-Falta Autor', 'R-Condi Clínica', 'R-RE PrevCOVID19', 'R-RE x Adelanto', 'R-Rea por Inas', 'R-RP Falta Exam', 'R-RP Mot Pers'))		
+			and b.[Texto causal modificacion] not in ('No ubica Pen RE', 'R-RE por Médico', 'R-Equi Dañado', 'R-Falta Ins.Med', 'R-Mot IntFVL') 
+			THEN 1 
+			ELSE 0
+		END as [Ubicados SAP & Genesys],
+		c.confirmado,
+		c.efectividad,
+		c.[efectividad ivr],
+		c.[Efectividad Llamada],
+		c.[Efectividad WhatsApp],
+		/*CASE WHEN DATEDIFF(DAY, CONVERT(Date,b.[Fecha creacion]), CONVERT(Date, b.fecha)) > 3
+		 AND NOT (
+			 -- Condición de Ubicados SAP & Genesys
+			 (b.[Texto causal modificacion] IN ('C-Aut Otra Ent', 'C-CA por Médico', 'C-CA por Pcte', 'C-Can Mismo Día', 'C-Canc.Aut', 'C-Cancelado WP', 'C-E. Admin', 'C-Equi Dañado', 'C-Falta Ins.Med', 'C-Fin tratamien', 'C-Mot IntFVL', 'CONF WHATSAPP', 'CONFIRMACIÓN', 'C-Pac Fallecido','R-Falta Autor', 'R-Condi Clínica', 'R-RE PrevCOVID19', 'R-RE x Adelanto', 'R-Rea por Inas', 'R-RP Falta Exam', 'R-RP Mot Pers') 
+			  OR c.[wrapup 2 (depurado)] in ('Cancelado', 'Confirmado', 'Otras Gestiones', 'Reasignada', 'Reasignado', 'Resignado', 'Ubicado') 
+			  OR cl.[Den# Anter] IN ('C-Aut Otra Ent', 'C-CA por Médico', 'C-CA por Pcte', 'C-Can Mismo Día', 'C-Canc.Aut', 'C-Cancelado WP', 'C-E. Admin', 'C-Equi Dañado', 'C-Falta Ins.Med', 'C-Fin tratamien', 'C-Mot IntFVL', 'CONF WHATSAPP', 'CONFIRMACIÓN', 'C-Pac Fallecido','R-Falta Autor', 'R-Condi Clínica', 'R-RE PrevCOVID19', 'R-RE x Adelanto', 'R-Rea por Inas', 'R-RP Falta Exam', 'R-RP Mot Pers')
+			  OR cl.[Den# Nueva] IN ('C-Aut Otra Ent', 'C-CA por Médico', 'C-CA por Pcte', 'C-Can Mismo Día', 'C-Canc.Aut', 'C-Cancelado WP', 'C-E. Admin', 'C-Equi Dañado', 'C-Falta Ins.Med', 'C-Fin tratamien', 'C-Mot IntFVL', 'CONF WHATSAPP', 'CONFIRMACIÓN', 'C-Pac Fallecido','R-Falta Autor', 'R-Condi Clínica', 'R-RE PrevCOVID19', 'R-RE x Adelanto', 'R-Rea por Inas', 'R-RP Falta Exam', 'R-RP Mot Pers'))
+			 AND b.[Texto causal modificacion] not in ('No ubica Pen RE', 'R-RE por Médico', 'R-Equi Dañado', 'R-Falta Ins.Med', 'R-Mot IntFVL')
+		 )
+		 AND b.[Texto causal modificacion] not in ('No ubica Pen RE', 'R-RE por Médico', 'R-Equi Dañado', 'R-Falta Ins.Med', 'R-Mot IntFVL') -- Excluir Novedades Médicas
+		 AND DATEDIFF(DAY, CONVERT(Date,b.[Fecha de anulacion]), CONVERT(Date, b.fecha)) <= 4 -- Excluir PreAnuladas
+		 AND c.[Efectividad Llamada] != 'No ubicado' -- Excluir No ubicados
+		 THEN 0 ELSE 1 
+		 END as [Asignado y confirmado], */
+		c.proceso,
+		CASE 
+		WHEN c.proceso is null then 'Llamada' 
+		WHEN cl.[Den# Nueva] = 'CONFIRMACIÓN' then 'Llamada'
+		WHEN cl.[Den# Nueva] = 'CONF WHATSAPP' AND C.Proceso = 'WhatsApp' then 'WhatsApp'
+		WHEN cl.[Den# Nueva] = 'CONF WHATSAPP' AND C.Proceso = 'IVR Inteligente' then 'IVR Inteligente'
+		else c.proceso 
+		end as proceso_unido,
+		ROW_NUMBER() OVER (
+			PARTITION BY b.[ID citacion]
+			ORDER BY 
+				CASE 
+					WHEN c.[wrapup 2 (depurado)] IS NULL THEN 2  
+					WHEN c.[wrapup 2 (depurado)] = 'No ubicado' THEN 1 
+					ELSE 0                                       -- primero
+				END,
+				c.[wrapup 2 (depurado)],
+				CASE WHEN c.Proceso IS NOT NULL AND c.Proceso <> '' THEN 0 ELSE 1 END,
+				b.fecha DESC
+		) AS rn
+    FROM Base_Pura_Sap b
+    LEFT JOIN [Unidades Organizativas] u ON b.[Unidad organizativa] = u.[Unidad organizativa]
+    LEFT JOIN [Códigos Aseguradoras] ca ON b.Aseguradora = ca.[Código de Aseguradora Plan] 
+    LEFT JOIN [Confirmacion_ene-ago_ivr_wp_tel] c ON b.[ID citacion] = c.[N citacion]
+	LEFT JOIN ClaseTransporte cl on b.[ID citacion] = cl.[ID citación]
+	where u.grupo in ('Consulta Externa', 'Ambulatorios', 'Gestión Humana', 'No aplica')
+	and b.fecha >= '2026-01-01'
+	AND b.Paciente not in ('830175', '780952', '1592793', '929833', '1510904', '929833',
+					'34945', '541544', '244097', '609990', '1831369', '1802972',
+					'472796', '15466', '406556', '1802972', '79450', '891314',
+					'185976', '1487394', '1319585', '217256', '1873023', '588320',
+					'87084', '1852003', '393591', '106691', '856301', '560115',
+					'1788209', '1908883', '1708711', '1406679', '570111',
+					'616985', '1899319', '1185057', '43239', '275427', '1929221',
+					'1575556','1007877','64324','144204')
+),
+conf_base AS (
+    SELECT
+        *,
+        CASE WHEN DATEDIFF(DAY, Fecha_Creacion, fecha_atencion) < 3
+             AND [Ubicados SAP & Genesys] = 0
+             AND [Novedades Medicas y PreAnuladas] = 0
+             AND [No ubicados] = 0
+             THEN 1 ELSE 0 
+        END as [Asignado y confirmado],
+        CASE WHEN [Ubicados SAP & Genesys] = 1
+              AND proceso_unido IN ('WhatsApp', 'IVR Inteligente')
+             THEN 'Digital' ELSE 'Telefónico'
+        END AS Canal
+    FROM conf_cte
+    WHERE rn = 1
+),
+conf_agg AS (
+    SELECT
+        fecha_atencion,
+        [Unidad organizativa],
+        SUM(CASE WHEN Canal = 'Digital'    THEN 1 ELSE 0 END) AS Cantidad_Digital,
+        SUM(CASE WHEN Canal = 'Telefónico' THEN 1 ELSE 0 END) AS Cantidad_Telefonico
+    FROM conf_base
+    GROUP BY fecha_atencion, [Unidad organizativa]
+)
+SELECT
+    k.fecha,
+    k.sede,
+    k.[Unidad organizativa],
+    COUNT(k.[ID citacion])   AS Cantidad_ID_Citacion,
+    ca.Cantidad_Digital,
+    ca.Cantidad_Telefonico,
+    k.Servicio,
+    k.DetalleRegla
+FROM Costos k
+INNER JOIN conf_agg ca
+        ON ca.fecha_atencion = k.fecha
+       AND ca.[Unidad organizativa] = k.[Unidad organizativa]
+WHERE k.Agendado_por = 'Centro de contacto'
+GROUP BY k.fecha, k.sede, k.[Unidad organizativa],
+         ca.Cantidad_Digital, ca.Cantidad_Telefonico,
+         k.Servicio, k.DetalleRegla
+ORDER BY k.fecha, k.[Unidad organizativa]
